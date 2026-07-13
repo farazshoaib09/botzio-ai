@@ -1,0 +1,581 @@
+.botzio-ai-admin-wrap {
+  --botzio-admin-bg: #f5f7fb;
+  --botzio-admin-surface: #ffffff;
+  --botzio-admin-surface-soft: #f8fafc;
+  --botzio-admin-border: #d9e1ea;
+  --botzio-admin-border-strong: #c8d3df;
+  --botzio-admin-text: #17202a;
+  --botzio-admin-muted: #5f6f82;
+  --botzio-admin-primary: #1769ff;
+  --botzio-admin-primary-dark: #0f4ec4;
+  --botzio-admin-accent: #00a884;
+  --botzio-admin-warning: #f4a100;
+  --botzio-admin-danger: #d63638;
+  --botzio-admin-shadow: 0 18px 45px rgba(23, 32, 42, 0.08);
+  max-width: 1180px;
+  color: var(--botzio-admin-text);
+}
+
+.botzio-ai-admin-wrap a {
+  color: var(--botzio-admin-primary);
+}
+
+.botzio-ai-admin-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 22px 0 18px;
+  padding: 24px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(23, 105, 255, 0.10), rgba(0, 168, 132, 0.07)),
+    var(--botzio-admin-surface);
+  box-shadow: var(--botzio-admin-shadow);
+}
+
+.botzio-ai-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.botzio-ai-admin-logo-mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #17202a;
+  box-shadow: 0 12px 28px rgba(23, 32, 42, 0.22);
+}
+
+.botzio-ai-admin-logo-mark img {
+  width: 84%;
+  height: 84%;
+  object-fit: contain;
+}
+
+.botzio-ai-eyebrow {
+  margin: 0;
+  color: var(--botzio-admin-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.botzio-ai-admin-hero h1 {
+  margin: 2px 0 6px;
+  color: var(--botzio-admin-text);
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+.botzio-ai-admin-subtitle {
+  max-width: 660px;
+  margin: 0;
+  color: var(--botzio-admin-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.botzio-ai-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.botzio-ai-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.botzio-ai-pill.is-success {
+  border: 1px solid rgba(0, 168, 132, 0.28);
+  background: rgba(0, 168, 132, 0.10);
+  color: #04795f;
+}
+
+.botzio-ai-pill.is-warning {
+  border: 1px solid rgba(244, 161, 0, 0.30);
+  background: rgba(244, 161, 0, 0.12);
+  color: #8a5a00;
+}
+
+.botzio-ai-admin-wrap .button-primary {
+  border-color: var(--botzio-admin-primary-dark);
+  background: var(--botzio-admin-primary);
+}
+
+.botzio-ai-admin-wrap .button-primary:hover,
+.botzio-ai-admin-wrap .button-primary:focus {
+  border-color: var(--botzio-admin-primary-dark);
+  background: var(--botzio-admin-primary-dark);
+}
+
+.botzio-ai-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.botzio-ai-stat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 14px;
+  background: var(--botzio-admin-surface-soft);
+}
+
+.botzio-ai-stat-card > .dashicons {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 12px;
+  background: rgba(23, 105, 255, 0.10);
+  color: var(--botzio-admin-primary);
+  font-size: 20px;
+}
+
+.botzio-ai-stat-card strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--botzio-admin-text);
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botzio-ai-stat-card span {
+  display: block;
+  margin-top: 6px;
+  color: var(--botzio-admin-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.botzio-ai-stat-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--botzio-admin-muted);
+  font-size: 12px;
+}
+
+.botzio-ai-overview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.botzio-ai-overview-card {
+  min-height: 124px;
+  padding: 18px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.78), rgba(255, 255, 255, 1)),
+    var(--botzio-admin-surface);
+  box-sizing: border-box;
+}
+
+.botzio-ai-overview-card h2,
+.botzio-ai-overview-card h3 {
+  margin: 0;
+  color: var(--botzio-admin-text);
+}
+
+.botzio-ai-overview-card h2 {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.botzio-ai-overview-card h3 {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.botzio-ai-analytics-card {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.botzio-ai-stat {
+  margin: 10px 0 0;
+  color: var(--botzio-admin-muted);
+}
+
+.botzio-ai-stat span {
+  display: block;
+  color: var(--botzio-admin-primary);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 780;
+}
+
+.botzio-ai-recent-questions ul {
+  margin: 0;
+  list-style: none;
+}
+
+.botzio-ai-recent-questions li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #eef3f8;
+}
+
+.botzio-ai-recent-questions li:last-child {
+  border-bottom: 0;
+}
+
+.botzio-ai-recent-questions li span {
+  overflow: hidden;
+  color: var(--botzio-admin-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botzio-ai-recent-questions small {
+  color: var(--botzio-admin-muted);
+  white-space: nowrap;
+}
+
+.botzio-ai-coming-soon-card {
+  border-color: #c9e4fb;
+  border-left: 4px solid var(--botzio-admin-primary);
+  background: #f6fbff;
+}
+
+.botzio-ai-coming-soon-card p {
+  margin: 8px 0 12px;
+  color: #3c434a;
+  line-height: 1.5;
+}
+
+.botzio-ai-coming-soon-card ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.botzio-ai-coming-soon-card li {
+  margin: 0;
+  padding: 4px 9px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.botzio-ai-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--botzio-admin-border);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: #eef3f8;
+  overflow-x: auto;
+}
+
+.botzio-ai-tabs.nav-tab-wrapper {
+  border-bottom: 0;
+}
+
+.botzio-ai-tabs .nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--botzio-admin-muted);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.botzio-ai-tabs .nav-tab:hover,
+.botzio-ai-tabs .nav-tab:focus {
+  color: var(--botzio-admin-primary);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.botzio-ai-tabs .nav-tab-active,
+.botzio-ai-tabs .nav-tab-active:hover,
+.botzio-ai-tabs .nav-tab-active:focus {
+  background: var(--botzio-admin-surface);
+  color: var(--botzio-admin-primary);
+  box-shadow: 0 8px 22px rgba(23, 32, 42, 0.08);
+}
+
+.botzio-ai-tabs .dashicons {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.botzio-ai-tab-content {
+  display: none;
+  padding: 26px;
+  border: 1px solid var(--botzio-admin-border);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  background: var(--botzio-admin-surface);
+  box-shadow: var(--botzio-admin-shadow);
+}
+
+.botzio-ai-tab-content.active {
+  display: block;
+}
+
+.botzio-ai-tab-content h2 {
+  margin: 0 0 18px;
+  color: var(--botzio-admin-text);
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.botzio-ai-tab-content .form-table {
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 14px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--botzio-admin-surface-soft);
+  overflow: hidden;
+}
+
+.botzio-ai-tab-content .form-table th,
+.botzio-ai-tab-content .form-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--botzio-admin-border);
+  vertical-align: top;
+}
+
+.botzio-ai-tab-content .form-table th {
+  width: 220px;
+  color: var(--botzio-admin-text);
+  font-weight: 750;
+}
+
+.botzio-ai-tab-content .form-table tr:last-child th,
+.botzio-ai-tab-content .form-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.botzio-ai-tab-content input.regular-text,
+.botzio-ai-tab-content input[type="password"],
+.botzio-ai-tab-content input[type="text"],
+.botzio-ai-tab-content input[type="number"],
+.botzio-ai-tab-content select,
+.botzio-ai-tab-content textarea.large-text {
+  max-width: 100%;
+  border-color: var(--botzio-admin-border-strong);
+  border-radius: 8px;
+}
+
+.botzio-ai-tab-content textarea.large-text {
+  width: 100%;
+  max-width: 760px;
+}
+
+#botzio_api_key,
+#botzio_model {
+  min-width: min(420px, 100%);
+}
+
+#botzio_knowledge_base {
+  min-height: 220px;
+}
+
+.botzio-ai-model-picker-row,
+.botzio-ai-connection-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.botzio-ai-model-select-row {
+  margin-top: 12px;
+}
+
+#botzio-ai-model-dropdown {
+  width: min(430px, 100%);
+}
+
+.botzio-ai-connection-action-row {
+  margin-top: 14px;
+}
+
+.botzio-ai-connection-message-row {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+#botzio-ai-test-result,
+#botzio-ai-model-result {
+  display: block;
+  min-height: 18px;
+  margin: 0;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.botzio-ai-settings-hint,
+.botzio-ai-tab-content .description {
+  max-width: 760px;
+  color: var(--botzio-admin-muted);
+}
+
+.botzio-ai-status-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.botzio-ai-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.botzio-ai-status-dot.connected {
+  background: var(--botzio-admin-accent);
+}
+
+.botzio-ai-status-dot.disconnected {
+  background: var(--botzio-admin-danger);
+}
+
+.botzio-ai-status-row strong {
+  font-size: 13px;
+}
+
+.botzio-ai-settings-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 14px;
+  background: rgba(245, 247, 251, 0.94);
+  box-shadow: 0 -12px 28px rgba(23, 32, 42, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.botzio-ai-settings-actions .button {
+  min-height: 36px;
+}
+
+@media (max-width: 1100px) {
+  .botzio-ai-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .botzio-ai-admin-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .botzio-ai-hero-actions {
+    justify-content: flex-start;
+  }
+
+  .botzio-ai-overview-row,
+  .botzio-ai-analytics-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 782px) {
+  .botzio-ai-admin-wrap {
+    margin-right: 12px;
+  }
+
+  .botzio-ai-admin-hero,
+  .botzio-ai-tab-content {
+    padding: 18px;
+  }
+
+  .botzio-ai-admin-brand {
+    align-items: flex-start;
+  }
+
+  .botzio-ai-admin-logo-mark {
+    width: 52px;
+    height: 52px;
+    flex-basis: 52px;
+    border-radius: 14px;
+  }
+
+  .botzio-ai-admin-hero h1 {
+    font-size: 26px;
+  }
+
+  .botzio-ai-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .botzio-ai-tab-content .form-table th,
+  .botzio-ai-tab-content .form-table td {
+    display: block;
+    width: auto;
+  }
+
+  .botzio-ai-settings-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
