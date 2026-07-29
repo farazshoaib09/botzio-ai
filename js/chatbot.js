@@ -37,6 +37,15 @@ jQuery(document).ready(function ($) {
   function formatAiText(text) {
     let safe = escapeHtml(text);
 
+    // Convert plain URLs into clickable links after escaping the AI text.
+    safe = safe.replace(/https?:\/\/[^\s<]+/g, function (url) {
+      const cleanUrl = url.replace(/[.,!?)]*$/, '');
+      const trailing = url.slice(cleanUrl.length);
+      const label = cleanUrl.indexOf('/product/') !== -1 ? 'Click here' : cleanUrl;
+
+      return '<a href="' + cleanUrl + '" target="_blank" rel="noopener noreferrer">' + label + '</a>' + trailing;
+    });
+
     // Bold markdown
     safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
@@ -147,10 +156,8 @@ jQuery(document).ready(function ($) {
               ? res.data
               : (res.data.message || 'Our agent is currently unavailable.');
 
-          typeEffect(targetSpan, aiText, 15, function () {
-            targetSpan.html(formatAiText(aiText));
-            saveConversation();
-          });
+          targetSpan.html(formatAiText(aiText));
+          saveConversation();
         } else {
           const errorMessage =
             res.data && res.data.message

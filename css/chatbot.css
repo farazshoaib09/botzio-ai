@@ -178,6 +178,14 @@
   font-weight: 700;
 }
 
+.ai-bubble a {
+  color: var(--botzio-ai-primary, #2563eb);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .ai-bubble br {
   line-height: 1.8;
 }
