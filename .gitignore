@@ -9,6 +9,7 @@ desktop.ini
 
 node_modules/
 vendor/
+tools/
 
 .idea/
 .vscode/

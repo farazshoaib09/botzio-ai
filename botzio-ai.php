@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.0.17
+Version: 1.0.18
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.0.17' );
+    define( 'BOTZIO_AI_VERSION', '1.0.18' );
 }
 
 function botzio_ai_is_pro_plugin_active() {
@@ -1249,7 +1249,7 @@ function botzio_ai_sync_selected_sources() {
         array(
             'message'        => sprintf(
                 /* translators: %d: synced source count */
-                _n( '%d source synced into Business Knowledge.', '%d sources synced into Business Knowledge.', count( $source_ids ), 'botzio-ai' ),
+                _n( '%d source synced into Business Knowledge. Test your chatbot with questions from this page.', '%d sources synced into Business Knowledge. Test your chatbot with questions from these pages.', count( $source_ids ), 'botzio-ai' ),
                 count( $source_ids )
             ),
             'knowledge_base' => trim( $knowledge_base ),
@@ -1356,6 +1356,9 @@ function botzio_ai_knowledge_base_field() {
                         <span class="botzio-ai-kb-health-label"><?php echo esc_html__( 'Basic website sync', 'botzio-ai' ); ?></span>
                         <strong><?php echo esc_html__( 'Sync up to 3 pages or posts', 'botzio-ai' ); ?></strong>
                         <p><?php echo esc_html__( 'Free includes manual text sync for selected WordPress pages/posts. Products, documents, auto-sync, and unlimited sources are Pro features.', 'botzio-ai' ); ?></p>
+                        <p class="botzio-ai-settings-hint">
+                            <?php echo esc_html__( 'For better answers, choose pages with clear headings such as Services, About, FAQs, Policies, or Contact.', 'botzio-ai' ); ?>
+                        </p>
                         <p class="botzio-ai-source-pro-line">
                             <?php echo esc_html__( 'Need more than 3 sources?', 'botzio-ai' ); ?>
                             <a href="<?php echo esc_url( $pro_upgrade_url ); ?>" target="_blank" rel="noopener noreferrer">
