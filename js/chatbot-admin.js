@@ -394,6 +394,88 @@ jQuery(document).ready(function () {
     });
   });
 
+  function getSelectedSourceIds() {
+    return jQuery('.botzio-ai-source-checkbox:checked')
+      .map(function () {
+        return jQuery(this).val();
+      })
+      .get();
+  }
+
+  function updateSourceSyncUi() {
+    const selected = getSelectedSourceIds();
+    const count = selected.length;
+    const limitReached = count >= 3;
+
+    jQuery('#botzio-ai-source-count').text(count);
+
+    jQuery('.botzio-ai-source-checkbox').each(function () {
+      const checkbox = jQuery(this);
+      checkbox.prop('disabled', limitReached && !checkbox.prop('checked'));
+    });
+
+    jQuery('#botzio-ai-sync-sources').prop('disabled', count < 1);
+  }
+
+  jQuery(document).on('change', '.botzio-ai-source-checkbox', function () {
+    const checkbox = jQuery(this);
+    const result = jQuery('#botzio-ai-source-sync-result');
+
+    if (getSelectedSourceIds().length > 3) {
+      checkbox.prop('checked', false);
+      result.css('color', 'red').text('Free sync is limited to 3 pages or posts.');
+    } else {
+      result.css('color', '').text('');
+    }
+
+    updateSourceSyncUi();
+  });
+
+  jQuery(document).on('click', '#botzio-ai-sync-sources', function () {
+    const button = jQuery(this);
+    const result = jQuery('#botzio-ai-source-sync-result');
+    const sourceIds = getSelectedSourceIds();
+
+    if (!sourceIds.length) {
+      result.css('color', 'red').text('Select at least one page or post to sync.');
+      return;
+    }
+
+    button.prop('disabled', true).text('Syncing...');
+    result.css('color', '').text('');
+
+    jQuery.ajax({
+      url: botzioAiAdmin.ajax_url,
+      method: 'POST',
+      dataType: 'json',
+      data: {
+        action: 'botzio_ai_sync_selected_sources',
+        nonce: botzioAiAdmin.nonce,
+        source_ids: sourceIds
+      },
+      success: function (res) {
+        if (res.success) {
+          if (res.data && typeof res.data.knowledge_base === 'string') {
+            jQuery('#botzio_knowledge_base').val(res.data.knowledge_base);
+          }
+
+          result.css('color', 'green').text(res.data.message || 'Sources synced.');
+        } else {
+          result
+            .css('color', 'red')
+            .text(res.data && res.data.message ? res.data.message : 'Could not sync selected sources.');
+        }
+      },
+      error: function () {
+        result.css('color', 'red').text('Could not sync selected sources.');
+      },
+      complete: function () {
+        button.text('Sync Selected Sources');
+        updateSourceSyncUi();
+      }
+    });
+  });
+
   function updateRecentQuestionLimit() {
     const limit = parseInt(jQuery('#botzio-ai-question-limit').val(), 10) || 10;
     const rows = jQuery('.botzio-ai-recent-question-list li');
@@ -786,6 +868,20 @@ jQuery(document).ready(function () {
     }
   });
 
+  jQuery(document).on('click', '.botzio-ai-welcome-sync-jump', function (e) {
+    e.preventDefault();
+
+    dismissWelcomeGuide();
+    activateAdminTab('#botzio-ai-tab-content');
+
+    const syncCard = jQuery('.botzio-ai-source-sync');
+    const targetOffset = syncCard.length ? syncCard.offset().top : jQuery('.botzio-ai-tabs').offset().top;
+
+    jQuery('html, body').animate({
+      scrollTop: targetOffset - 32
+    }, 300);
+  });
+
   jQuery(document).on('click', '.botzio-ai-scroll-pro-comparison', function (e) {
     e.preventDefault();
 
@@ -831,5 +927,6 @@ jQuery(document).ready(function () {
   updateProviderHelpText();
   initializeCachedModels();
   updateRecentQuestionLimit();
+  updateSourceSyncUi();
   updateAppearancePreview();
 });

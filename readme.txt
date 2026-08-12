@@ -4,19 +4,33 @@ Tags: ai chatbot, wordpress chatbot, customer support, ai assistant, knowledge b
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.14
+Stable tag: 1.0.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-AI-powered WordPress chatbot with OpenAI, Gemini, and OpenRouter support for automated customer support and website assistance.
+Add a website-aware AI chatbot that answers from your business info, selected pages/posts, and clear answer rules.
 
 == Description ==
 
-**Botzio AI** helps WordPress website owners add an AI-powered chatbot to their website for customer support, FAQ automation, and visitor engagement.
+**Botzio AI** helps you add a helpful AI chatbot to your WordPress site without making visitors talk to a generic bot.
 
-The plugin supports multiple AI providers including OpenAI, Gemini, and OpenRouter, allowing you to configure your preferred AI model and train responses using your own business information and website knowledge base.
+You control what Botzio knows: your business details, services, policies, support info, FAQs, and up to 3 selected WordPress pages or posts in the free version.
 
-Botzio AI is designed for businesses, agencies, online stores, service providers, and website owners who want to automate common support questions and improve visitor interaction.
+When a visitor asks a question, Botzio uses Smart Context Selection to focus on the most relevant saved knowledge before asking your chosen AI provider for an answer. That means fewer generic replies and more website-specific answers.
+
+The plugin supports OpenAI, Gemini, and OpenRouter, so you can choose the AI provider and model that fits your setup.
+
+Botzio AI is built for business owners, agencies, service providers, online stores, and site owners who want a practical support assistant that feels connected to their website.
+
+= What Botzio Helps You Do =
+
+- Answer common visitor questions from your own business info.
+- Let Botzio learn from up to 3 selected WordPress pages or posts.
+- Use safe default Answer Rules, and edit them when needed.
+- Add starter questions visitors can tap when chat opens.
+- Preview the chatbot before making it public.
+- See what visitors are asking and spot missing answers.
+- Check AI provider errors in admin without showing ugly technical messages to visitors.
 
 = Free Features =
 
@@ -25,16 +39,29 @@ Botzio AI is designed for businesses, agencies, online stores, service providers
   - Gemini
   - OpenRouter
 
-- Custom knowledge base support
-- Website-specific AI responses
+- Business Knowledge builder for offers, policies, support details, and FAQs
+- Basic website knowledge sync for up to 3 selected WordPress pages or posts
+- Smart Context Selection for more focused AI answers
+- Knowledge readiness score and missing-info guidance
+- Website-specific AI responses from saved knowledge
+- Strong editable Answer Rules
+- Local greeting handling for common greetings
 - Chat bubble customization
-- Custom welcome message
-- Starter question suggestions
+- Custom opening message
+- Starter questions visitors can tap
 - Admin-only chatbot preview mode
+- Admin-only AI error diagnostics
+- Recent visitor question insights
 - Daily visitor message limits
 - Adjustable AI temperature and response length
 - Floating chatbot interface
 - Multiple AI model support
+
+= Free vs Pro =
+
+Botzio AI Free gives you the foundation: AI connection, business knowledge, limited page/post sync, smart context selection, chatbot styling, starter questions, usage limits, and visitor insights.
+
+Botzio AI Pro is for the bigger jobs: WooCommerce product answers, product recommendations, order lookup, lead capture, human handoff, conversation cart workflows, and expanded knowledge automation.
 
 == Installation ==
 
@@ -43,7 +70,7 @@ Botzio AI is designed for businesses, agencies, online stores, service providers
 3. Open the Botzio AI settings page from the WordPress admin menu.
 4. Select your preferred AI provider.
 5. Enter your API key and select a model.
-6. Configure your chatbot appearance and knowledge base settings.
+6. Add Business Knowledge, optionally sync up to 3 pages/posts, customize the chatbot, and preview before going live.
 
 == Frequently Asked Questions ==
 
@@ -56,7 +83,19 @@ The plugin currently supports:
 
 = Can I train the chatbot using my own business information? =
 
-Yes. You can add custom business information, FAQs, policies, and support details through the built-in knowledge base settings.
+Yes. Add your business info, FAQs, policies, services, support details, and other useful website knowledge from the Business Knowledge tab.
+
+= Can Botzio learn from my WordPress pages or posts? =
+
+Yes. In the free version, you can manually sync up to 3 selected published pages or posts into Business Knowledge.
+
+= Does Botzio use RAG or vector databases in the free version? =
+
+No. The free version keeps things lightweight. It uses Smart Context Selection instead of vector databases. Advanced RAG, vector search, unlimited sources, documents, products, and auto-sync belong in Pro-level workflows.
+
+= What is Smart Context Selection? =
+
+Smart Context Selection is Botzio's lightweight accuracy helper. It looks at the visitor question, scores your saved knowledge sections, and sends the most relevant parts to AI instead of blindly sending everything.
 
 = Can I customize the chatbot appearance? =
 
@@ -69,6 +108,14 @@ Yes. You can customize:
 = Does the free version include message limits? =
 
 Yes. The free version includes a daily message limit per visitor.
+
+= Why does the chatbot stay hidden until AI is connected? =
+
+Botzio keeps the public chatbot hidden until AI is tested successfully or a supported Pro workflow is available. Visitors should not see a half-configured chatbot.
+
+= Can I see provider errors when AI fails? =
+
+Yes. Admin-only diagnostics show the last AI provider error with provider, model, timestamp, and message. Visitors only see a clean fallback message.
 
 == External services ==
 
@@ -83,6 +130,7 @@ Data sent:
 * Visitor chat messages.
 * Custom system prompt.
 * Manual website knowledge base configured by the administrator.
+* Selected page/post text synced by the administrator.
 * Selected AI model.
 
 Data is sent:
@@ -106,6 +154,7 @@ Data sent:
 * Visitor chat messages.
 * Custom system prompt.
 * Manual website knowledge base configured by the administrator.
+* Selected page/post text synced by the administrator.
 * Selected AI model.
 
 Data is sent:
@@ -129,6 +178,7 @@ Data sent:
 * Visitor chat messages.
 * Custom system prompt.
 * Manual website knowledge base configured by the administrator.
+* Selected page/post text synced by the administrator.
 * Selected AI model.
 
 Data is sent:
@@ -148,12 +198,33 @@ https://policies.google.com/privacy
 1. Frontend chatbot experience with a clean visitor-facing chat window.
 2. Welcome setup guide that helps admins prepare knowledge, starter questions, design, and AI connection.
 3. Main Botzio AI dashboard with connection, knowledge base, visitor chat, and launch progress status.
-4. Business Knowledge tab for adding website details, offers, policies, support information, and FAQs.
+4. Business Knowledge tab for adding website details, syncing selected pages/posts, checking readiness, and managing FAQs, policies, and support information.
 5. Chat Experience settings with a live admin preview of the chatbot style.
 6. Visitor Insights analytics showing total questions, common topics, review opportunities, and AI readiness.
 7. AI Connection setup with provider, API key, model selection, and verified connection status.
 
 == Changelog ==
+
+= 1.0.17 =
+* Improved page/post sync so selected pages with headings also save concise section summaries.
+* Improved answer length handling so Botzio adjusts reply detail based on the admin's token budget.
+* Clarified the Answer Length setting so admins understand higher values allow more explanation.
+* Reduced incomplete replies by instructing AI to summarize instead of starting long answers it cannot finish.
+
+= 1.0.16 =
+* Added clearer Free and Pro knowledge sync guidance when Botzio AI Pro is active.
+* Improved dashboard setup status, header actions, and Free vs Pro upgrade guidance.
+* Refined admin copy across setup, knowledge, analytics, and chatbot readiness areas.
+* Improved Pro handoff messaging so Free stays focused on business knowledge while Pro handles advanced sync.
+
+= 1.0.15 =
+* Added Basic Website Knowledge Sync for up to 3 selected published pages/posts.
+* Added Smart Context Selection so Botzio sends more relevant knowledge sections to AI instead of always sending the full knowledge base.
+* Added stronger default Answer Rules and local greeting handling for common greetings.
+* Added admin-only AI error diagnostics with provider, model, timestamp, and last provider error.
+* Added focused Pro checkout links for upgrade CTAs while keeping the header CTA pointed to the Free vs Pro comparison.
+* Added onboarding guidance for the new Knowledge Sync flow.
+* Improved Business Knowledge helper copy and reset/uninstall cleanup for synced source data.
 
 = 1.0.14 =
 * Simplified the top dashboard header actions to keep the setup area cleaner.

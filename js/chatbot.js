@@ -154,7 +154,7 @@ jQuery(document).ready(function ($) {
           const aiText =
             typeof res.data === 'string'
               ? res.data
-              : (res.data.message || 'Our agent is currently unavailable.');
+              : (res.data.message || 'I do not have enough information to answer that yet.');
 
           targetSpan.html(formatAiText(aiText));
           saveConversation();
@@ -162,7 +162,7 @@ jQuery(document).ready(function ($) {
           const errorMessage =
             res.data && res.data.message
               ? res.data.message
-              : 'Something went wrong. Please try again later.';
+              : 'I am having trouble answering right now. Please try again in a moment.';
 
           targetSpan.html(formatAiText(errorMessage));
           saveConversation();
@@ -171,7 +171,7 @@ jQuery(document).ready(function ($) {
       error: function () {
         typingElement
           .find('.chat-bubble')
-          .html(formatAiText('Our agent is currently unavailable. Please try again later.'));
+          .html(formatAiText('I am having trouble connecting right now. Please try again in a moment.'));
 
         saveConversation();
       },

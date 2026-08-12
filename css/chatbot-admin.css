@@ -629,6 +629,48 @@
   font-weight: 700;
 }
 
+.botzio-ai-welcome-sync-cta {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(23, 105, 255, 0.18);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(23, 105, 255, 0.07), rgba(0, 168, 132, 0.04)),
+    #ffffff;
+}
+
+.botzio-ai-welcome-sync-cta > .dashicons {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(23, 105, 255, 0.10);
+  color: var(--botzio-admin-primary);
+}
+
+.botzio-ai-welcome-sync-cta strong {
+  display: block;
+  color: var(--botzio-admin-text);
+  font-size: 13px;
+}
+
+.botzio-ai-welcome-sync-cta p {
+  margin: 3px 0 0;
+  color: var(--botzio-admin-muted);
+  line-height: 1.4;
+}
+
+.botzio-ai-welcome-pro-line {
+  color: #04795f !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .botzio-ai-welcome-preview-step {
   gap: 14px;
   padding: 14px;
@@ -1664,6 +1706,238 @@
   line-height: 1.5;
 }
 
+.botzio-ai-kb-health {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(220px, 1fr) auto;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(0, 168, 132, 0.20);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(0, 168, 132, 0.08), rgba(23, 105, 255, 0.04)),
+    #ffffff;
+}
+
+.botzio-ai-kb-health-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--botzio-admin-primary);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.botzio-ai-kb-health strong {
+  color: var(--botzio-admin-text);
+  font-size: 16px;
+}
+
+.botzio-ai-kb-health small {
+  color: var(--botzio-admin-muted);
+  font-weight: 600;
+}
+
+.botzio-ai-kb-health-meter {
+  overflow: hidden;
+  height: 9px;
+  border-radius: 999px;
+  background: #e8eef6;
+}
+
+.botzio-ai-kb-health-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--botzio-admin-primary), var(--botzio-admin-accent));
+}
+
+.botzio-ai-kb-health ul {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+}
+
+.botzio-ai-kb-health li {
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(244, 161, 0, 0.12);
+  color: #7a5100;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.botzio-ai-source-sync {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid rgba(23, 105, 255, 0.16);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(23, 105, 255, 0.06), rgba(0, 168, 132, 0.035)),
+    #ffffff;
+}
+
+.botzio-ai-source-sync-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.botzio-ai-source-sync-heading strong {
+  display: block;
+  color: var(--botzio-admin-text);
+  font-size: 15px;
+}
+
+.botzio-ai-source-sync-heading p {
+  max-width: 880px;
+  margin: 4px 0 0;
+  color: var(--botzio-admin-muted);
+  line-height: 1.45;
+}
+
+.botzio-ai-source-sync-heading .botzio-ai-source-pro-line {
+  color: #04795f;
+  font-weight: 700;
+}
+
+.botzio-ai-source-pro-line a {
+  text-decoration: none;
+}
+
+.botzio-ai-source-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(0, 168, 132, 0.24);
+  border-radius: 999px;
+  background: rgba(0, 168, 132, 0.08);
+  color: #04795f;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.botzio-ai-source-count strong {
+  display: inline;
+  color: inherit;
+  font-size: 13px;
+}
+
+.botzio-ai-source-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.botzio-ai-source-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 9px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 10px;
+  background: var(--botzio-admin-surface-soft);
+}
+
+.botzio-ai-source-item input {
+  margin-top: 2px;
+}
+
+.botzio-ai-source-item strong {
+  display: block;
+  overflow: hidden;
+  color: var(--botzio-admin-text);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botzio-ai-source-item small {
+  display: block;
+  margin-top: 2px;
+  color: var(--botzio-admin-muted);
+  line-height: 1.35;
+}
+
+.botzio-ai-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#botzio-ai-source-sync-result {
+  color: var(--botzio-admin-muted);
+  font-weight: 650;
+}
+
+.botzio-ai-pro-sync-handoff {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-color: rgba(0, 168, 132, 0.24);
+  background:
+    linear-gradient(135deg, rgba(0, 168, 132, 0.10), rgba(23, 105, 255, 0.06)),
+    #ffffff;
+  box-shadow: 0 14px 34px rgba(23, 32, 42, 0.06);
+}
+
+.botzio-ai-pro-sync-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: rgba(0, 168, 132, 0.12);
+  color: var(--botzio-admin-accent);
+}
+
+.botzio-ai-pro-sync-icon .dashicons {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+}
+
+.botzio-ai-pro-sync-handoff strong {
+  display: block;
+  color: var(--botzio-admin-text);
+  font-size: 15px;
+}
+
+.botzio-ai-pro-sync-handoff p {
+  max-width: 980px;
+  margin: 4px 0 0;
+  color: var(--botzio-admin-muted);
+  line-height: 1.5;
+}
+
+.botzio-ai-pro-sync-handoff small {
+  display: block;
+  margin-top: 8px;
+  color: #04795f;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.botzio-ai-pro-sync-handoff .button {
+  white-space: nowrap;
+}
+
 .botzio-ai-kb-template-grid {
   display: flex;
   flex-wrap: wrap;
@@ -1967,6 +2241,29 @@
   color: var(--botzio-admin-muted);
 }
 
+.botzio-ai-field-intro {
+  max-width: 980px;
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(23, 105, 255, 0.14);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(23, 105, 255, 0.06), rgba(0, 168, 132, 0.04)),
+    #ffffff;
+}
+
+.botzio-ai-field-intro strong {
+  display: block;
+  color: var(--botzio-admin-text);
+  font-size: 13px;
+}
+
+.botzio-ai-field-intro p {
+  margin: 4px 0 0;
+  color: var(--botzio-admin-muted);
+  line-height: 1.45;
+}
+
 .botzio-ai-status-row {
   display: inline-flex;
   align-items: center;
@@ -1995,6 +2292,40 @@
 
 .botzio-ai-status-row strong {
   font-size: 13px;
+}
+
+.botzio-ai-diagnostic-card {
+  display: grid;
+  gap: 10px;
+  max-width: 980px;
+  margin-top: 12px;
+  padding: 13px 14px;
+  border: 1px solid rgba(214, 54, 56, 0.24);
+  border-left: 4px solid var(--botzio-admin-danger);
+  border-radius: 10px;
+  background: rgba(214, 54, 56, 0.045);
+}
+
+.botzio-ai-diagnostic-card strong {
+  color: var(--botzio-admin-text);
+  font-size: 13px;
+}
+
+.botzio-ai-diagnostic-card p {
+  margin: 3px 0 0;
+  color: var(--botzio-admin-muted);
+}
+
+.botzio-ai-diagnostic-card code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border: 1px solid rgba(214, 54, 56, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #7f1d1d;
+  white-space: normal;
 }
 
 .botzio-ai-settings-actions {
@@ -2341,6 +2672,14 @@
   .botzio-ai-appearance-layout {
     grid-template-columns: 1fr;
   }
+
+  .botzio-ai-kb-health {
+    grid-template-columns: 1fr;
+  }
+
+  .botzio-ai-source-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 960px) {
@@ -2418,6 +2757,23 @@
     grid-template-columns: 1fr;
   }
 
+  .botzio-ai-source-sync-heading {
+    flex-direction: column;
+  }
+
+  .botzio-ai-pro-sync-handoff {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .botzio-ai-pro-sync-handoff .button {
+    width: fit-content;
+  }
+
+  .botzio-ai-source-list {
+    grid-template-columns: 1fr;
+  }
+
   .botzio-ai-feature-list {
     grid-template-columns: 1fr;
   }
@@ -2456,6 +2812,10 @@
   }
 
   .botzio-ai-preview-next {
+    grid-template-columns: 1fr;
+  }
+
+  .botzio-ai-welcome-sync-cta {
     grid-template-columns: 1fr;
   }
 

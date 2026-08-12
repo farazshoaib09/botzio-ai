@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.0.14
+Version: 1.0.17
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.0.14' );
+    define( 'BOTZIO_AI_VERSION', '1.0.17' );
 }
 
 function botzio_ai_is_pro_plugin_active() {
@@ -29,6 +29,35 @@ function botzio_ai_is_pro_plugin_active() {
     }
 
     return is_plugin_active( 'botzio-ai-pro/botzio-ai-pro.php' );
+}
+
+function botzio_ai_is_pro_features_unlocked() {
+    if ( ! botzio_ai_is_pro_plugin_active() ) {
+        return false;
+    }
+
+    if (
+        class_exists( 'Botzio_AI_Pro' ) &&
+        method_exists( 'Botzio_AI_Pro', 'instance' )
+    ) {
+        $botzio_ai_pro = Botzio_AI_Pro::instance();
+
+        if (
+            is_callable( array( $botzio_ai_pro, 'can_load_pro_features' ) ) &&
+            $botzio_ai_pro->can_load_pro_features()
+        ) {
+            return true;
+        }
+    }
+
+    return (bool) apply_filters( 'botzio_ai_is_pro_features_unlocked', false );
+}
+
+function botzio_ai_get_pro_knowledge_sync_url() {
+    return apply_filters(
+        'botzio_ai_pro_knowledge_sync_url',
+        admin_url( 'admin.php?page=botzio-ai-pro&tab=training' )
+    );
 }
 
 function botzio_ai_is_ai_connection_ready() {
@@ -100,6 +129,43 @@ function botzio_ai_is_frontend_chatbot_ready() {
     return botzio_ai_is_ai_connection_ready() || botzio_ai_is_pro_chatbot_module_ready();
 }
 
+function botzio_ai_get_default_answer_rules() {
+    return implode(
+        "\n\n",
+        array(
+            'Answer only from the saved Business Knowledge.',
+            'Keep replies friendly, clear, and concise.',
+            'If the visitor asks about products, services, policies, delivery, returns, payment, or support, answer using the saved business details only.',
+            'If the exact answer is missing, do not guess. Say that the information is not available in the saved website knowledge yet, then suggest contacting support if helpful.',
+            'Ask one short clarification question when the visitor question is vague.',
+            'Use short paragraphs and bullet points when listing multiple items.',
+            'Do not invent prices, discounts, stock availability, delivery dates, guarantees, phone numbers, email addresses, addresses, or policies.',
+            'Do not answer unrelated questions outside this website or business.',
+        )
+    );
+}
+
+function botzio_ai_get_answer_rules() {
+    $value = get_option( 'botzio_ai_custom_prompt', botzio_ai_get_default_answer_rules() );
+    $value = trim( (string) $value );
+
+    $legacy_defaults = array(
+        '',
+        'Answer only related to the current website, nothing else.',
+        'Answer only from the saved business knowledge. If information is missing, say so clearly and ask for the detail needed.',
+    );
+
+    if ( in_array( $value, $legacy_defaults, true ) ) {
+        return botzio_ai_get_default_answer_rules();
+    }
+
+    return $value;
+}
+
+function botzio_ai_get_default_pro_checkout_url() {
+    return 'https://checkout.freemius.com/plugin/35059/plan/57722/licenses/1/';
+}
+
 /**
  * Activation
  */
@@ -115,9 +181,10 @@ function botzio_ai_plugin_activate() {
     add_option( 'botzio_ai_provider', 'openrouter' );
     add_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
     add_option( 'botzio_ai_cached_models', array() );
-    add_option( 'botzio_ai_custom_prompt', 'Answer only related to the current website, nothing else.' );
-    add_option( 'botzio_ai_error_message', 'I can only answer questions related to this website.' );
+    add_option( 'botzio_ai_custom_prompt', botzio_ai_get_default_answer_rules() );
+    add_option( 'botzio_ai_error_message', 'I do not have that information in the saved website knowledge yet.' );
     add_option( 'botzio_ai_welcome_message', 'Hello! Welcome to our website. How can I help you today?' );
+    add_option( 'botzio_ai_synced_source_ids', array() );
 }
 register_activation_hook( __FILE__, 'botzio_ai_plugin_activate' );
 
@@ -255,7 +322,7 @@ function botzio_ai_plugin_settings() {
         array(
             'type'              => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
-            'default'           => 'Answer only related to the current website, nothing else.',
+            'default'           => botzio_ai_get_default_answer_rules(),
         )
     );
 
@@ -265,7 +332,7 @@ function botzio_ai_plugin_settings() {
         array(
             'type'              => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
-            'default'           => 'I can only answer questions related to this website.',
+            'default'           => 'I do not have that information in the saved website knowledge yet.',
         )
     );
 
@@ -401,7 +468,7 @@ function botzio_ai_plugin_settings() {
 
     add_settings_field(
         'botzio_ai_custom_prompt',
-        __( 'Response Guidelines', 'botzio-ai' ),
+        __( 'Answer Rules', 'botzio-ai' ),
         'botzio_ai_custom_prompt_field',
         'botzio-ai-content',
         'botzio_ai_content_section'
@@ -409,7 +476,7 @@ function botzio_ai_plugin_settings() {
 
     add_settings_field(
         'botzio_ai_welcome_message',
-        __( 'Welcome Message', 'botzio-ai' ),
+        __( 'Opening Message', 'botzio-ai' ),
         'botzio_ai_welcome_message_field',
         'botzio-ai-content',
         'botzio_ai_content_section'
@@ -417,7 +484,7 @@ function botzio_ai_plugin_settings() {
 
     add_settings_field(
         'botzio_ai_error_message',
-        __( 'Off-topic Reply', 'botzio-ai' ),
+        __( 'When Botzio Does Not Know', 'botzio-ai' ),
         'botzio_ai_error_message_field',
         'botzio-ai-content',
         'botzio_ai_content_section'
@@ -425,7 +492,7 @@ function botzio_ai_plugin_settings() {
 
     add_settings_field(
         'botzio_ai_starter_suggestions',
-        __( 'Starter Questions', 'botzio-ai' ),
+        __( 'Starter Questions Visitors Can Tap', 'botzio-ai' ),
         'botzio_ai_starter_suggestions_field',
         'botzio-ai-content',
         'botzio_ai_content_section'
@@ -561,7 +628,7 @@ function botzio_ai_starter_suggestions_field() {
     ><?php echo esc_textarea( $value ); ?></textarea>
 
     <p class="description botzio-ai-settings-hint">
-        <?php echo esc_html__( 'Add one starter question per line. These will appear only when a visitor starts a new chat.', 'botzio-ai' ); ?>
+        <?php echo esc_html__( 'Add one visitor question per line. Keep them practical, like products, pricing, delivery, returns, services, or support.', 'botzio-ai' ); ?>
     </p>
     <?php
 }
@@ -675,6 +742,7 @@ function botzio_ai_connection_status_field() {
     $provider          = get_option( 'botzio_ai_provider', 'openrouter' );
     $verified_model    = get_option( 'botzio_ai_connection_verified_model', '' );
     $is_verified       = botzio_ai_is_ai_connection_ready();
+    $last_error        = botzio_ai_get_last_ai_error();
     ?>
     <div class="botzio-ai-status-row">
         <span class="botzio-ai-status-dot <?php echo $is_verified ? 'connected' : 'disconnected'; ?>"></span>
@@ -699,8 +767,65 @@ function botzio_ai_connection_status_field() {
             <?php echo esc_html__( 'Prepare your chatbot knowledge now. Connect and test AI when you are ready to show it to visitors.', 'botzio-ai' ); ?>
         </p>
     <?php endif; ?>
+
+    <?php if ( ! empty( $last_error ) ) : ?>
+        <div class="botzio-ai-diagnostic-card">
+            <div>
+                <strong><?php echo esc_html__( 'Last AI error', 'botzio-ai' ); ?></strong>
+                <p>
+                    <?php
+                    echo esc_html(
+                        sprintf(
+                            /* translators: 1: AI provider, 2: AI model, 3: error time */
+                            __( '%1$s / %2$s at %3$s', 'botzio-ai' ),
+                            $last_error['provider'],
+                            $last_error['model'],
+                            $last_error['time']
+                        )
+                    );
+                    ?>
+                </p>
+            </div>
+
+            <code><?php echo esc_html( $last_error['message'] ); ?></code>
+        </div>
+    <?php endif; ?>
     <?php
 }
+
+function botzio_ai_record_ai_error( $provider, $model, $message ) {
+    update_option(
+        'botzio_ai_last_ai_error',
+        array(
+            'provider'  => sanitize_text_field( (string) $provider ),
+            'model'     => sanitize_text_field( (string) $model ),
+            'message'   => sanitize_text_field( (string) $message ),
+            'timestamp' => current_time( 'timestamp' ),
+        )
+    );
+}
+
+function botzio_ai_clear_ai_error() {
+    delete_option( 'botzio_ai_last_ai_error' );
+}
+
+function botzio_ai_get_last_ai_error() {
+    $error = get_option( 'botzio_ai_last_ai_error', array() );
+
+    if ( ! is_array( $error ) || empty( $error['message'] ) ) {
+        return array();
+    }
+
+    $timestamp = ! empty( $error['timestamp'] ) ? absint( $error['timestamp'] ) : current_time( 'timestamp' );
+
+    return array(
+        'provider' => ! empty( $error['provider'] ) ? $error['provider'] : __( 'Unknown provider', 'botzio-ai' ),
+        'model'    => ! empty( $error['model'] ) ? $error['model'] : __( 'Unknown model', 'botzio-ai' ),
+        'message'  => $error['message'],
+        'time'     => date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp ),
+    );
+}
+
 function botzio_ai_test_connection() {
     check_ajax_referer( 'botzio_ai_nonce', 'nonce' );
     update_option( 'botzio_ai_connection_verified', 'no' );
@@ -742,6 +867,7 @@ function botzio_ai_test_connection() {
 
     if ( is_wp_error( $result ) ) {
         botzio_ai_reset_connection_verification();
+        botzio_ai_record_ai_error( $provider, $model, $result->get_error_message() );
 
         wp_send_json_error(
             array(
@@ -756,6 +882,7 @@ function botzio_ai_test_connection() {
     update_option( 'botzio_ai_connection_verified', 'yes' );
     update_option( 'botzio_ai_connection_verified_provider', $provider );
     update_option( 'botzio_ai_connection_verified_model', $model );
+    botzio_ai_clear_ai_error();
     update_option(
         'botzio_ai_connection_verified_signature',
         botzio_ai_connection_signature( $provider, $api_key, $model )
@@ -928,24 +1055,380 @@ function botzio_ai_save_welcome_appearance() {
 }
 add_action( 'wp_ajax_botzio_ai_save_welcome_appearance', 'botzio_ai_save_welcome_appearance' );
 
+function botzio_ai_get_syncable_sources() {
+    $sources = get_posts(
+        array(
+            'post_type'      => array( 'page', 'post' ),
+            'post_status'    => 'publish',
+            'posts_per_page' => 30,
+            'orderby'        => 'modified',
+            'order'          => 'DESC',
+            'fields'         => 'all',
+        )
+    );
+
+    return is_array( $sources ) ? $sources : array();
+}
+
+function botzio_ai_sanitize_source_ids( $source_ids ) {
+    if ( ! is_array( $source_ids ) ) {
+        $source_ids = array();
+    }
+
+    $source_ids = array_values(
+        array_unique(
+            array_filter(
+                array_map( 'absint', $source_ids )
+            )
+        )
+    );
+
+    return array_slice( $source_ids, 0, 3 );
+}
+
+function botzio_ai_build_synced_knowledge_block( $source_ids ) {
+    $source_ids = botzio_ai_sanitize_source_ids( $source_ids );
+
+    if ( empty( $source_ids ) ) {
+        return '';
+    }
+
+    $lines = array(
+        'Website Knowledge Sync:',
+        'These selected WordPress pages/posts were manually synced into Botzio AI Free.',
+    );
+
+    foreach ( $source_ids as $source_id ) {
+        $post = get_post( $source_id );
+
+        if ( ! $post || 'publish' !== $post->post_status || ! in_array( $post->post_type, array( 'page', 'post' ), true ) ) {
+            continue;
+        }
+
+        $content       = $post->post_excerpt ? $post->post_excerpt : $post->post_content;
+        $content       = botzio_ai_clean_synced_source_text( $content );
+        $content       = wp_trim_words( $content, 80, '' );
+        $page_sections = botzio_ai_extract_synced_source_sections( $post->post_content );
+
+        $lines[] = '';
+        $lines[] = 'Source: ' . get_post_type_object( $post->post_type )->labels->singular_name;
+        $lines[] = 'Title: ' . get_the_title( $post );
+        $lines[] = 'URL: ' . get_permalink( $post );
+
+        if ( '' !== $content ) {
+            $lines[] = 'Summary: ' . $content;
+        }
+
+        if ( ! empty( $page_sections ) ) {
+            $section_names = wp_list_pluck( $page_sections, 'heading' );
+            $lines[]       = 'Key Sections: ' . implode( '; ', $section_names ) . '.';
+
+            foreach ( $page_sections as $section ) {
+                $lines[] = $section['heading'] . ': ' . $section['summary'];
+            }
+        }
+    }
+
+    return trim( implode( "\n", $lines ) );
+}
+
+function botzio_ai_clean_synced_source_text( $content ) {
+    $content = wp_strip_all_tags( strip_shortcodes( (string) $content ) );
+    $content = html_entity_decode( $content, ENT_QUOTES, get_bloginfo( 'charset' ) );
+    $content = preg_replace( '/\x{00a0}/u', ' ', $content );
+    $content = preg_replace( '/\s+/', ' ', $content );
+
+    return trim( (string) $content );
+}
+
+function botzio_ai_extract_synced_source_sections( $content ) {
+    $content = strip_shortcodes( (string) $content );
+    $content = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', "\n", $content );
+    $content = preg_replace_callback(
+        '/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is',
+        function ( $matches ) {
+            return "\n[BOTZIO_HEADING] " . botzio_ai_clean_synced_source_text( $matches[1] ) . "\n";
+        },
+        $content
+    );
+
+    $lines           = preg_split( "/\r\n|\n|\r/", wp_strip_all_tags( $content ) );
+    $sections        = array();
+    $current_heading = '';
+    $current_text    = '';
+
+    foreach ( $lines as $line ) {
+        $line = trim( html_entity_decode( (string) $line, ENT_QUOTES, get_bloginfo( 'charset' ) ) );
+
+        if ( '' === $line ) {
+            continue;
+        }
+
+        if ( 0 === strpos( $line, '[BOTZIO_HEADING]' ) ) {
+            if ( '' !== $current_heading && '' !== trim( $current_text ) ) {
+                $sections[] = array(
+                    'heading' => $current_heading,
+                    'summary' => wp_trim_words( botzio_ai_clean_synced_source_text( $current_text ), 34, '' ),
+                );
+            }
+
+            $current_heading = trim( substr( $line, strlen( '[BOTZIO_HEADING]' ) ) );
+            $current_text    = '';
+            continue;
+        }
+
+        $current_text .= ( '' === $current_text ? '' : ' ' ) . $line;
+    }
+
+    if ( '' !== $current_heading && '' !== trim( $current_text ) ) {
+        $sections[] = array(
+            'heading' => $current_heading,
+            'summary' => wp_trim_words( botzio_ai_clean_synced_source_text( $current_text ), 34, '' ),
+        );
+    }
+
+    $sections = array_values(
+        array_filter(
+            $sections,
+            function ( $section ) {
+                return ! empty( $section['heading'] ) && ! empty( $section['summary'] );
+            }
+        )
+    );
+
+    return array_slice( $sections, 0, 8 );
+}
+
+function botzio_ai_replace_synced_knowledge_block( $knowledge_base, $synced_block ) {
+    $knowledge_base = trim( (string) $knowledge_base );
+    $pattern        = '/\n*Website Knowledge Sync:\s*.*?(?=\n\n[A-Z][^\n:]+:|\z)/s';
+
+    if ( preg_match( $pattern, $knowledge_base ) ) {
+        $knowledge_base = trim( preg_replace( $pattern, '', $knowledge_base ) );
+    }
+
+    if ( '' === trim( $synced_block ) ) {
+        return $knowledge_base;
+    }
+
+    return $knowledge_base ? trim( $synced_block ) . "\n\n" . $knowledge_base : trim( $synced_block );
+}
+
+function botzio_ai_sync_selected_sources() {
+    check_ajax_referer( 'botzio_ai_nonce', 'nonce' );
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error(
+            array(
+                'message' => 'Permission denied.',
+            )
+        );
+    }
+
+    $source_ids = isset( $_POST['source_ids'] )
+        ? botzio_ai_sanitize_source_ids( wp_unslash( $_POST['source_ids'] ) )
+        : array();
+
+    if ( empty( $source_ids ) ) {
+        wp_send_json_error(
+            array(
+                'message' => 'Select at least one page or post to sync.',
+            )
+        );
+    }
+
+    $synced_block   = botzio_ai_build_synced_knowledge_block( $source_ids );
+    $knowledge_base = get_option( 'botzio_ai_knowledge_base', '' );
+    $knowledge_base = botzio_ai_replace_synced_knowledge_block( $knowledge_base, $synced_block );
+
+    update_option( 'botzio_ai_synced_source_ids', $source_ids );
+    update_option( 'botzio_ai_last_source_sync', current_time( 'timestamp' ) );
+    update_option( 'botzio_ai_knowledge_base', trim( $knowledge_base ) );
+
+    wp_send_json_success(
+        array(
+            'message'        => sprintf(
+                /* translators: %d: synced source count */
+                _n( '%d source synced into Business Knowledge.', '%d sources synced into Business Knowledge.', count( $source_ids ), 'botzio-ai' ),
+                count( $source_ids )
+            ),
+            'knowledge_base' => trim( $knowledge_base ),
+            'source_count'   => count( $source_ids ),
+        )
+    );
+}
+add_action( 'wp_ajax_botzio_ai_sync_selected_sources', 'botzio_ai_sync_selected_sources' );
+
 // Callback function for the max_tokens field
 function botzio_ai_max_tokens_field() {
     $value = get_option( 'botzio_ai_max_tokens', 150 );
     ?>
     <input type="number" name="botzio_ai_max_tokens" value="<?php echo esc_attr( $value ); ?>" class="small-text" />
     <p class="description">
-        <?php echo esc_html__( 'Set the preferred reply size. Higher values allow fuller answers; lower values keep responses concise.', 'botzio-ai' ); ?>
+        <?php echo esc_html__( 'Set the reply budget in AI tokens, not words. Increase it when you want more explanation; lower it when you prefer shorter, faster answers.', 'botzio-ai' ); ?>
     </p>
     <?php
 }
 function botzio_ai_knowledge_base_field() {
-    $value = get_option( 'botzio_ai_knowledge_base', '' );
+    $value              = get_option( 'botzio_ai_knowledge_base', '' );
+    $health             = botzio_ai_get_knowledge_health( $value );
+    $sources            = botzio_ai_get_syncable_sources();
+    $selected_source_ids = botzio_ai_sanitize_source_ids( get_option( 'botzio_ai_synced_source_ids', array() ) );
+    $last_sync          = absint( get_option( 'botzio_ai_last_source_sync', 0 ) );
+    $pro_upgrade_url    = apply_filters( 'botzio_ai_pro_upgrade_url', botzio_ai_get_default_pro_checkout_url() );
+    $pro_unlocked       = botzio_ai_is_pro_features_unlocked();
+    $pro_sync_url       = botzio_ai_get_pro_knowledge_sync_url();
     ?>
     <div class="botzio-ai-kb-builder">
         <div class="botzio-ai-kb-builder-copy">
             <strong><?php echo esc_html__( 'Prepare your chatbot knowledge', 'botzio-ai' ); ?></strong>
             <p><?php echo esc_html__( 'Add the business details visitors should hear: what you offer, who you serve, policies, contact options, and your most common answers.', 'botzio-ai' ); ?></p>
         </div>
+
+        <div class="botzio-ai-kb-health">
+            <div>
+                <span class="botzio-ai-kb-health-label"><?php echo esc_html__( 'Answer readiness', 'botzio-ai' ); ?></span>
+                <strong><?php echo esc_html( $health['label'] ); ?></strong>
+            </div>
+
+            <div class="botzio-ai-kb-health-meter" aria-hidden="true">
+                <span style="width: <?php echo esc_attr( $health['score'] ); ?>%;"></span>
+            </div>
+
+            <small>
+                <?php
+                echo esc_html(
+                    sprintf(
+                        /* translators: 1: knowledge base readiness score, 2: knowledge base character count */
+                        __( '%1$d%% ready from %2$d saved characters.', 'botzio-ai' ),
+                        $health['score'],
+                        $health['characters']
+                    )
+                );
+                ?>
+            </small>
+
+            <?php if ( ! empty( $health['missing'] ) ) : ?>
+                <ul>
+                    <?php foreach ( $health['missing'] as $missing_item ) : ?>
+                        <li><?php echo esc_html( $missing_item ); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+
+        <?php if ( $pro_unlocked ) : ?>
+            <div class="botzio-ai-source-sync botzio-ai-pro-sync-handoff">
+                <div class="botzio-ai-pro-sync-icon">
+                    <span class="dashicons dashicons-database-import"></span>
+                </div>
+
+                <div>
+                    <span class="botzio-ai-kb-health-label"><?php echo esc_html__( 'Pro knowledge sync active', 'botzio-ai' ); ?></span>
+                    <strong><?php echo esc_html__( 'Use Pro for advanced website and store sync', 'botzio-ai' ); ?></strong>
+                    <p>
+                        <?php echo esc_html__( 'Free still controls your manual Business Knowledge, Answer Rules, Opening Message, and Starter Questions. Pro now handles expanded sync for more pages, posts, products, product fields, and exclusions.', 'botzio-ai' ); ?>
+                    </p>
+
+                    <?php if ( $last_sync ) : ?>
+                        <small>
+                            <?php
+                            echo esc_html(
+                                sprintf(
+                                    /* translators: %s: last basic sync date/time */
+                                    __( 'Previous Free basic sync: %s. You can leave it as saved knowledge or replace it from Pro sync.', 'botzio-ai' ),
+                                    date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_sync )
+                                )
+                            );
+                            ?>
+                        </small>
+                    <?php endif; ?>
+                </div>
+
+                <a class="button button-primary" href="<?php echo esc_url( $pro_sync_url ); ?>">
+                    <?php echo esc_html__( 'Open Pro Knowledge Sync', 'botzio-ai' ); ?>
+                </a>
+            </div>
+        <?php else : ?>
+            <div class="botzio-ai-source-sync">
+                <div class="botzio-ai-source-sync-heading">
+                    <div>
+                        <span class="botzio-ai-kb-health-label"><?php echo esc_html__( 'Basic website sync', 'botzio-ai' ); ?></span>
+                        <strong><?php echo esc_html__( 'Sync up to 3 pages or posts', 'botzio-ai' ); ?></strong>
+                        <p><?php echo esc_html__( 'Free includes manual text sync for selected WordPress pages/posts. Products, documents, auto-sync, and unlimited sources are Pro features.', 'botzio-ai' ); ?></p>
+                        <p class="botzio-ai-source-pro-line">
+                            <?php echo esc_html__( 'Need more than 3 sources?', 'botzio-ai' ); ?>
+                            <a href="<?php echo esc_url( $pro_upgrade_url ); ?>" target="_blank" rel="noopener noreferrer">
+                                <?php echo esc_html__( 'Unlock unlimited knowledge sync with Botzio AI Pro.', 'botzio-ai' ); ?>
+                            </a>
+                        </p>
+                    </div>
+
+                    <span class="botzio-ai-source-count">
+                        <strong id="botzio-ai-source-count"><?php echo esc_html( count( $selected_source_ids ) ); ?></strong>/3
+                        <?php echo esc_html__( 'used', 'botzio-ai' ); ?>
+                    </span>
+                </div>
+
+                <?php if ( ! empty( $sources ) ) : ?>
+                    <div class="botzio-ai-source-list">
+                        <?php foreach ( $sources as $source ) : ?>
+                            <?php
+                            $source_type = get_post_type_object( $source->post_type );
+                            $type_label  = $source_type ? $source_type->labels->singular_name : $source->post_type;
+                            ?>
+                            <label class="botzio-ai-source-item">
+                                <input
+                                    type="checkbox"
+                                    class="botzio-ai-source-checkbox"
+                                    value="<?php echo esc_attr( $source->ID ); ?>"
+                                    <?php checked( in_array( $source->ID, $selected_source_ids, true ) ); ?>
+                                />
+                                <span>
+                                    <strong><?php echo esc_html( get_the_title( $source ) ); ?></strong>
+                                    <small>
+                                        <?php
+                                        echo esc_html(
+                                            sprintf(
+                                                /* translators: 1: post type label, 2: modified date */
+                                                __( '%1$s - updated %2$s', 'botzio-ai' ),
+                                                $type_label,
+                                                get_the_modified_date( get_option( 'date_format' ), $source )
+                                            )
+                                        );
+                                        ?>
+                                    </small>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <div class="botzio-ai-source-actions">
+                        <button type="button" class="button button-secondary" id="botzio-ai-sync-sources">
+                            <?php echo esc_html__( 'Sync Selected Sources', 'botzio-ai' ); ?>
+                        </button>
+
+                        <span id="botzio-ai-source-sync-result">
+                            <?php
+                            if ( $last_sync ) {
+                                echo esc_html(
+                                    sprintf(
+                                        /* translators: %s: last sync date/time */
+                                        __( 'Last synced %s.', 'botzio-ai' ),
+                                        date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_sync )
+                                    )
+                                );
+                            }
+                            ?>
+                        </span>
+                    </div>
+                <?php else : ?>
+                    <p class="description botzio-ai-settings-hint">
+                        <?php echo esc_html__( 'No published pages or posts are available to sync yet.', 'botzio-ai' ); ?>
+                    </p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="botzio-ai-kb-template-grid">
             <button type="button" class="button botzio-ai-kb-template" data-template="business">
@@ -985,7 +1468,7 @@ function botzio_ai_knowledge_base_field() {
     ><?php echo esc_textarea( $value ); ?></textarea>
 
     <p class="description botzio-ai-settings-hint">
-        <?php echo esc_html__( 'Keep this focused. Short, structured business information usually creates better answers than pasted pages or long marketing copy.', 'botzio-ai' ); ?>
+        <?php echo esc_html__( 'Keep this structured. Botzio now selects the most relevant knowledge sections before asking AI, so clear headings and short sections improve answer accuracy.', 'botzio-ai' ); ?>
     </p>
     <?php
 }
@@ -1045,6 +1528,28 @@ function botzio_ai_get_max_tokens() {
     }
 
     return $max_tokens;
+}
+
+function botzio_ai_get_answer_length_instruction( $max_tokens ) {
+    $max_tokens = botzio_ai_sanitize_max_tokens( $max_tokens );
+
+    if ( $max_tokens <= 120 ) {
+        return 'Answer in 1 to 2 short sentences. Do not use long lists. If there are many items, mention the main categories only and invite the visitor to ask for details.';
+    }
+
+    if ( $max_tokens <= 180 ) {
+        return 'Answer in 2 to 3 short sentences or up to 3 compact bullets. Prioritize a complete answer over detailed explanations.';
+    }
+
+    if ( $max_tokens <= 300 ) {
+        return 'Answer in one short paragraph or up to 5 compact bullets. Keep each bullet brief and complete.';
+    }
+
+    if ( $max_tokens <= 600 ) {
+        return 'Answer with a concise overview and useful bullets. Keep section details short.';
+    }
+
+    return 'You may give a fuller answer, but keep it organized and avoid unnecessary detail.';
 }
 
 function botzio_ai_should_retry_incomplete_response( $content, $finish_reason = '' ) {
@@ -1163,7 +1668,7 @@ function botzio_ai_settings_page() {
     $chatbot_ready     = botzio_ai_is_frontend_chatbot_ready();
     $pro_module_ready  = botzio_ai_is_pro_chatbot_module_ready();
     $pro_is_active     = botzio_ai_is_pro_plugin_active();
-    $pro_upgrade_url   = apply_filters( 'botzio_ai_pro_upgrade_url', admin_url( 'plugins.php' ) );
+    $pro_upgrade_url   = apply_filters( 'botzio_ai_pro_upgrade_url', botzio_ai_get_default_pro_checkout_url() );
     $knowledge_base    = trim( get_option( 'botzio_ai_knowledge_base', '' ) );
     $daily_limit       = absint( get_option( 'botzio_ai_daily_limit', 20 ) );
     $chatbot_enabled   = 'yes' === get_option( 'botzio_ai_display_chatbot', 'yes' );
@@ -1396,6 +1901,18 @@ function botzio_ai_settings_page() {
                                 </button>
 
                                 <span id="botzio-ai-welcome-business-result"></span>
+                            </div>
+
+                            <div class="botzio-ai-welcome-sync-cta">
+                                <span class="dashicons dashicons-database-import"></span>
+                                <div>
+                                    <strong><?php echo esc_html__( 'Want Botzio to learn from your site?', 'botzio-ai' ); ?></strong>
+                                    <p><?php echo esc_html__( 'After saving the basics, choose up to 3 pages or posts from the Knowledge tab and sync them into Business Knowledge.', 'botzio-ai' ); ?></p>
+                                    <p class="botzio-ai-welcome-pro-line"><?php echo esc_html__( 'Need more sources later? Pro unlocks unlimited knowledge sync.', 'botzio-ai' ); ?></p>
+                                </div>
+                                <button type="button" class="button button-secondary botzio-ai-welcome-sync-jump">
+                                    <?php echo esc_html__( 'Open Knowledge Sync', 'botzio-ai' ); ?>
+                                </button>
                             </div>
                         </div>
 
@@ -2137,7 +2654,7 @@ function botzio_ai_settings_page() {
                             <?php echo esc_html__( 'Botzio AI Pro is installed on this site.', 'botzio-ai' ); ?>
                         </span>
                     <?php else : ?>
-                        <a class="button button-primary" href="<?php echo esc_url( $pro_upgrade_url ); ?>">
+                        <a class="button button-primary" href="<?php echo esc_url( $pro_upgrade_url ); ?>" target="_blank" rel="noopener noreferrer">
                             <?php echo esc_html__( 'Upgrade to Pro', 'botzio-ai' ); ?>
                         </a>
                     <?php endif; ?>
@@ -2269,8 +2786,13 @@ function botzio_ai_model_field() {
 }
 
 function botzio_ai_custom_prompt_field() {
-    $value = get_option( 'botzio_ai_custom_prompt', 'Answer only related to the current website, nothing else.' );
+    $value = botzio_ai_get_answer_rules();
     ?>
+    <div class="botzio-ai-field-intro">
+        <strong><?php echo esc_html__( 'Shape how Botzio answers visitors.', 'botzio-ai' ); ?></strong>
+        <p><?php echo esc_html__( 'These rules are already optimized for safe website answers. Edit them only if your business needs a different tone, format, or boundary.', 'botzio-ai' ); ?></p>
+    </div>
+
     <textarea
         name="botzio_ai_custom_prompt"
         rows="6"
@@ -2278,32 +2800,48 @@ function botzio_ai_custom_prompt_field() {
         class="large-text"
     ><?php echo esc_textarea( $value ); ?></textarea>
     <p class="description botzio-ai-settings-hint">
-        <?php echo esc_html__( 'Add simple instructions for tone, boundaries, response style, or anything the chatbot should avoid.', 'botzio-ai' ); ?>
+        <?php echo esc_html__( 'You can add extra rules at the bottom. Keep business facts in Business Knowledge, not here.', 'botzio-ai' ); ?>
     </p>
     <?php
 }
 
 function botzio_ai_error_message_field() {
-    $value = get_option( 'botzio_ai_error_message', 'I can only answer questions related to this website.' );
+    $value = get_option( 'botzio_ai_error_message', 'I do not have that information in the saved website knowledge yet.' );
     ?>
+    <div class="botzio-ai-field-intro">
+        <strong><?php echo esc_html__( 'Control the fallback answer.', 'botzio-ai' ); ?></strong>
+        <p><?php echo esc_html__( 'This appears when Botzio cannot answer from saved knowledge. A helpful fallback is better than a hard rejection.', 'botzio-ai' ); ?></p>
+    </div>
+
     <textarea
         name="botzio_ai_error_message"
         rows="3"
         cols="60"
         class="large-text"
     ><?php echo esc_textarea( $value ); ?></textarea>
+    <p class="description botzio-ai-settings-hint">
+        <?php echo esc_html__( 'Use a helpful fallback for missing knowledge. Avoid harsh replies like "I can only answer website questions."', 'botzio-ai' ); ?>
+    </p>
     <?php
 }
 
 function botzio_ai_welcome_message_field() {
     $value = get_option( 'botzio_ai_welcome_message', 'Hello! Welcome to our website. How can I help you today?' );
     ?>
+    <div class="botzio-ai-field-intro">
+        <strong><?php echo esc_html__( 'Set the first message visitors see.', 'botzio-ai' ); ?></strong>
+        <p><?php echo esc_html__( 'Make it short, warm, and specific enough to invite a useful first question.', 'botzio-ai' ); ?></p>
+    </div>
+
     <textarea
         name="botzio_ai_welcome_message"
         rows="3"
         cols="60"
         class="large-text"
     ><?php echo esc_textarea( $value ); ?></textarea>
+    <p class="description botzio-ai-settings-hint">
+        <?php echo esc_html__( 'Example: Hi! I can help with our services, policies, delivery, and support details. What would you like to know?', 'botzio-ai' ); ?>
+    </p>
     <?php
 }
 function botzio_ai_daily_limit_field() {
@@ -2641,6 +3179,445 @@ function botzio_ai_get_review_questions( $recent_questions ) {
     return $review_questions;
 }
 
+function botzio_ai_normalize_text( $text ) {
+    $text = strtolower( wp_strip_all_tags( (string) $text ) );
+    $text = preg_replace( '/[^a-z0-9\s]+/i', ' ', $text );
+    $text = preg_replace( '/\s+/', ' ', $text );
+
+    return trim( (string) $text );
+}
+
+function botzio_ai_get_query_terms( $message ) {
+    $normalized = botzio_ai_normalize_text( $message );
+    $words      = array_filter( explode( ' ', $normalized ) );
+    $stopwords  = array(
+        'a',
+        'about',
+        'all',
+        'am',
+        'an',
+        'and',
+        'any',
+        'are',
+        'as',
+        'at',
+        'be',
+        'by',
+        'can',
+        'could',
+        'do',
+        'does',
+        'for',
+        'from',
+        'give',
+        'have',
+        'how',
+        'i',
+        'in',
+        'is',
+        'it',
+        'its',
+        'list',
+        'me',
+        'my',
+        'of',
+        'on',
+        'or',
+        'please',
+        'show',
+        'tell',
+        'that',
+        'the',
+        'this',
+        'to',
+        'u',
+        'we',
+        'what',
+        'when',
+        'where',
+        'which',
+        'with',
+        'you',
+        'your',
+    );
+
+    $terms = array();
+
+    foreach ( $words as $word ) {
+        if ( strlen( $word ) < 3 || in_array( $word, $stopwords, true ) ) {
+            continue;
+        }
+
+        $terms[] = $word;
+
+        if ( strlen( $word ) > 4 && 's' === substr( $word, -1 ) ) {
+            $terms[] = substr( $word, 0, -1 );
+        }
+    }
+
+    $aliases = array(
+        'cod'      => array( 'cash', 'delivery', 'payment' ),
+        'contact'  => array( 'support', 'email', 'phone', 'whatsapp' ),
+        'cost'     => array( 'price', 'pricing', 'fee' ),
+        'delivery' => array( 'shipping', 'courier', 'dispatch' ),
+        'exchange' => array( 'return', 'refund', 'policy' ),
+        'payment'  => array( 'pay', 'cash', 'card', 'checkout' ),
+        'price'    => array( 'pricing', 'cost', 'fee' ),
+        'refund'   => array( 'return', 'exchange', 'policy' ),
+        'return'   => array( 'refund', 'exchange', 'policy' ),
+        'shipping' => array( 'delivery', 'courier', 'dispatch' ),
+        'support'  => array( 'contact', 'email', 'phone', 'whatsapp' ),
+    );
+
+    foreach ( $terms as $term ) {
+        if ( isset( $aliases[ $term ] ) ) {
+            $terms = array_merge( $terms, $aliases[ $term ] );
+        }
+    }
+
+    return array_values( array_unique( $terms ) );
+}
+
+function botzio_ai_split_knowledge_sections( $knowledge_base ) {
+    $knowledge_base = trim( (string) $knowledge_base );
+
+    if ( '' === $knowledge_base ) {
+        return array();
+    }
+
+    $chunks   = preg_split( "/\n\s*\n/", $knowledge_base );
+    $sections = array();
+
+    foreach ( $chunks as $chunk ) {
+        $chunk = trim( (string) $chunk );
+
+        if ( '' === $chunk ) {
+            continue;
+        }
+
+        $lines = preg_split( "/\r\n|\n|\r/", $chunk );
+        $title = trim( (string) reset( $lines ) );
+
+        if ( strlen( $chunk ) > 1400 ) {
+            $sentences = preg_split( '/(?<=[.!?])\s+/', $chunk );
+            $buffer    = '';
+
+            foreach ( $sentences as $sentence ) {
+                $sentence = trim( (string) $sentence );
+
+                if ( '' === $sentence ) {
+                    continue;
+                }
+
+                if ( strlen( $buffer . ' ' . $sentence ) > 1100 && '' !== $buffer ) {
+                    $sections[] = array(
+                        'title' => $title,
+                        'text'  => trim( $buffer ),
+                    );
+                    $buffer = '';
+                }
+
+                $buffer .= ( '' === $buffer ? '' : ' ' ) . $sentence;
+            }
+
+            if ( '' !== trim( $buffer ) ) {
+                $sections[] = array(
+                    'title' => $title,
+                    'text'  => trim( $buffer ),
+                );
+            }
+
+            continue;
+        }
+
+        $sections[] = array(
+            'title' => $title,
+            'text'  => $chunk,
+        );
+    }
+
+    return $sections;
+}
+
+function botzio_ai_score_knowledge_section( $section, $terms, $intent ) {
+    $text       = isset( $section['text'] ) ? (string) $section['text'] : '';
+    $title      = isset( $section['title'] ) ? (string) $section['title'] : '';
+    $normalized = botzio_ai_normalize_text( $title . ' ' . $text );
+    $score      = 0;
+
+    foreach ( $terms as $term ) {
+        if ( '' === $term ) {
+            continue;
+        }
+
+        $matches = substr_count( $normalized, $term );
+
+        if ( $matches > 0 ) {
+            $score += min( 10, $matches * 2 );
+        }
+
+        if ( false !== strpos( botzio_ai_normalize_text( $title ), $term ) ) {
+            $score += 6;
+        }
+    }
+
+    $intent_keywords = array(
+        'business' => array( 'business', 'profile', 'offer', 'service', 'product', 'about', 'sell', 'provide' ),
+        'contact'  => array( 'contact', 'support', 'email', 'phone', 'whatsapp', 'call' ),
+        'policy'   => array( 'policy', 'return', 'refund', 'exchange', 'shipping', 'delivery', 'payment', 'warranty' ),
+    );
+
+    if ( isset( $intent_keywords[ $intent ] ) ) {
+        foreach ( $intent_keywords[ $intent ] as $keyword ) {
+            if ( false !== strpos( $normalized, $keyword ) ) {
+                $score += 5;
+            }
+        }
+    }
+
+    if ( preg_match( '/\b(quick business info|business profile|support details|faq|website knowledge sync)\b/', $normalized ) ) {
+        $score += 2;
+    }
+
+    return $score;
+}
+
+function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message ) {
+    $knowledge_base = trim( (string) $knowledge_base );
+
+    if ( '' === $knowledge_base || strlen( wp_strip_all_tags( $knowledge_base ) ) <= 2200 ) {
+        return $knowledge_base;
+    }
+
+    $sections = botzio_ai_split_knowledge_sections( $knowledge_base );
+
+    if ( empty( $sections ) ) {
+        return $knowledge_base;
+    }
+
+    $terms  = botzio_ai_get_query_terms( $message );
+    $intent = botzio_ai_get_message_intent( $message );
+    $scored = array();
+
+    foreach ( $sections as $index => $section ) {
+        $score = botzio_ai_score_knowledge_section( $section, $terms, $intent );
+
+        $scored[] = array(
+            'index' => $index,
+            'score' => $score,
+            'text'  => $section['text'],
+        );
+    }
+
+    usort(
+        $scored,
+        function ( $a, $b ) {
+            if ( $a['score'] === $b['score'] ) {
+                return $a['index'] <=> $b['index'];
+            }
+
+            return $b['score'] <=> $a['score'];
+        }
+    );
+
+    $selected = array();
+
+    foreach ( $scored as $item ) {
+        if ( $item['score'] <= 0 && ! empty( $selected ) ) {
+            continue;
+        }
+
+        $selected[] = $item;
+
+        if ( count( $selected ) >= 4 ) {
+            break;
+        }
+    }
+
+    if ( empty( $selected ) ) {
+        $selected = array_slice( $scored, 0, 3 );
+    }
+
+    usort(
+        $selected,
+        function ( $a, $b ) {
+            return $a['index'] <=> $b['index'];
+        }
+    );
+
+    $context_parts = array();
+    $context_size  = 0;
+
+    foreach ( $selected as $item ) {
+        $text = trim( $item['text'] );
+
+        if ( '' === $text ) {
+            continue;
+        }
+
+        if ( $context_size + strlen( $text ) > 3600 && ! empty( $context_parts ) ) {
+            continue;
+        }
+
+        $context_parts[] = $text;
+        $context_size   += strlen( $text );
+    }
+
+    return trim( implode( "\n\n", $context_parts ) );
+}
+
+function botzio_ai_get_knowledge_health( $knowledge_base ) {
+    $knowledge_base = trim( wp_strip_all_tags( (string) $knowledge_base ) );
+    $normalized     = botzio_ai_normalize_text( $knowledge_base );
+    $characters     = strlen( $knowledge_base );
+    $score          = 0;
+    $missing        = array();
+
+    if ( $characters >= 250 ) {
+        $score += 20;
+    } else {
+        $missing[] = __( 'Add a short business overview.', 'botzio-ai' );
+    }
+
+    if ( preg_match( '/\b(product|products|service|services|offer|offers|sell|provide|specialize|business|store)\b/', $normalized ) ) {
+        $score += 25;
+    } else {
+        $missing[] = __( 'Explain what you offer.', 'botzio-ai' );
+    }
+
+    if ( preg_match( '/\b(contact|support|email|phone|whatsapp|call|message|help)\b/', $normalized ) ) {
+        $score += 20;
+    } else {
+        $missing[] = __( 'Add support or contact details.', 'botzio-ai' );
+    }
+
+    if ( preg_match( '/\b(return|refund|exchange|shipping|delivery|policy|warranty|payment|cash|cod)\b/', $normalized ) ) {
+        $score += 20;
+    } else {
+        $missing[] = __( 'Add common policies visitors ask about.', 'botzio-ai' );
+    }
+
+    if ( false !== strpos( $knowledge_base, '?' ) || preg_match( '/\b(faq|question|answer|customer asks)\b/', $normalized ) ) {
+        $score += 15;
+    } else {
+        $missing[] = __( 'Add a few frequently asked questions.', 'botzio-ai' );
+    }
+
+    $score = min( 100, $score );
+
+    if ( $score >= 80 ) {
+        $label = __( 'Strong', 'botzio-ai' );
+    } elseif ( $score >= 45 ) {
+        $label = __( 'Needs detail', 'botzio-ai' );
+    } else {
+        $label = __( 'Too thin', 'botzio-ai' );
+    }
+
+    return array(
+        'score'      => $score,
+        'label'      => $label,
+        'characters' => $characters,
+        'missing'    => array_slice( $missing, 0, 3 ),
+    );
+}
+
+function botzio_ai_get_message_intent( $message ) {
+    $normalized = botzio_ai_normalize_text( $message );
+
+    if ( '' === $normalized ) {
+        return 'empty';
+    }
+
+    if ( preg_match( '/\b(hi|hello|hey|greetings|greeting|salam|assalam|assalamu alaikum|good morning|good afternoon|good evening|namaste|how are you)\b/', $normalized ) ) {
+        return 'greeting';
+    }
+
+    if ( preg_match( '/\b(contact|support|email|phone|whatsapp|call|agent|human)\b/', $normalized ) ) {
+        return 'contact';
+    }
+
+    if ( preg_match( '/\b(return|refund|exchange|shipping|delivery|policy|warranty|payment|cash|cod)\b/', $normalized ) ) {
+        return 'policy';
+    }
+
+    if ( preg_match( '/\b(offer|offers|sell|provide|service|services|product|products|about|website|business)\b/', $normalized ) ) {
+        return 'business';
+    }
+
+    $words = array_filter( explode( ' ', $normalized ) );
+
+    if ( count( $words ) <= 2 ) {
+        return 'vague';
+    }
+
+    return 'general';
+}
+
+function botzio_ai_get_clarification_reply( $message ) {
+    $intent = botzio_ai_get_message_intent( $message );
+
+    if ( 'vague' !== $intent ) {
+        return '';
+    }
+
+    return __( 'Can you be a little more specific? I can help with business details, services or products, pricing, policies, delivery, or support information.', 'botzio-ai' );
+}
+
+function botzio_ai_get_greeting_reply() {
+    $welcome_message = trim( wp_strip_all_tags( (string) get_option( 'botzio_ai_welcome_message', 'Hello! Welcome to our website. How can I help you today?' ) ) );
+
+    if ( '' === $welcome_message ) {
+        $welcome_message = __( 'Hello! How can I help you with this website today?', 'botzio-ai' );
+    }
+
+    return $welcome_message;
+}
+
+function botzio_ai_get_friendly_fallback( $message, $knowledge_base, $error_message = '' ) {
+    $intent = botzio_ai_get_message_intent( $message );
+    $health = botzio_ai_get_knowledge_health( $knowledge_base );
+
+    if ( 'greeting' === $intent ) {
+        return botzio_ai_get_greeting_reply();
+    }
+
+    if ( $health['score'] < 25 ) {
+        return __( 'I do not have enough saved business knowledge to answer that accurately yet. The site owner should add business details in Botzio AI settings first.', 'botzio-ai' );
+    }
+
+    if ( 'contact' === $intent && ! preg_match( '/\b(contact|support|email|phone|whatsapp|call)\b/', botzio_ai_normalize_text( $knowledge_base ) ) ) {
+        return __( 'I do not have the support contact details saved yet. Please check the website contact page, or ask the site owner to add email, phone, or WhatsApp details in Botzio AI.', 'botzio-ai' );
+    }
+
+    if ( '' !== trim( (string) $error_message ) ) {
+        return trim( wp_strip_all_tags( (string) $error_message ) );
+    }
+
+    return __( 'I do not have that information in the saved website knowledge yet.', 'botzio-ai' );
+}
+
+function botzio_ai_is_incomplete_answer( $answer, $question ) {
+    $clean_answer = trim( wp_strip_all_tags( (string) $answer ) );
+
+    if ( '' === $clean_answer ) {
+        return true;
+    }
+
+    if ( 'greeting' === botzio_ai_get_message_intent( $question ) ) {
+        return false;
+    }
+
+    $word_count = str_word_count( $clean_answer );
+
+    $last_char = substr( $clean_answer, -1 );
+
+    if ( $word_count <= 12 && ! in_array( $last_char, array( '.', '!', '?', ':' ), true ) ) {
+        return true;
+    }
+
+    return false;
+}
+
 function botzio_ai_store_analytics( $message, $answer = '', $error_message = '' ) {
 
     $total_chats = absint( get_option( 'botzio_ai_total_chats', 0 ) );
@@ -2695,14 +3672,6 @@ function botzio_ai_process() {
         );
     }
 
-    if ( ! botzio_ai_is_ai_connection_ready() ) {
-        wp_send_json_error(
-            array(
-                'message' => 'The chatbot is not ready yet. Please connect and test an AI provider in plugin settings.',
-            )
-        );
-    }
-
     if ( botzio_ai_is_rate_limited() ) {
         wp_send_json_error(
             array(
@@ -2721,30 +3690,67 @@ function botzio_ai_process() {
 
     // Sanitize and retrieve options
     $user_input    = sanitize_text_field( wp_unslash( $_POST['user_input'] ) );
+    $knowledge_base = get_option( 'botzio_ai_knowledge_base', '' );
+    $error_message = get_option( 'botzio_ai_error_message', 'I do not have that information in the saved website knowledge yet.' );
+    $clarification = botzio_ai_get_clarification_reply( $user_input );
+
+    if ( 'greeting' === botzio_ai_get_message_intent( $user_input ) ) {
+        $greeting_reply = botzio_ai_get_greeting_reply();
+        botzio_ai_store_analytics( $user_input, $greeting_reply, $error_message );
+        wp_send_json_success( $greeting_reply );
+    }
+
+    if ( '' !== $clarification ) {
+        botzio_ai_store_analytics( $user_input, $clarification, $error_message );
+        wp_send_json_success( $clarification );
+    }
+
+    if ( ! botzio_ai_is_ai_connection_ready() ) {
+        $offline_reply = botzio_ai_get_friendly_fallback( $user_input, $knowledge_base, __( 'The chatbot is not connected to AI yet. The site owner can prepare business knowledge now and connect AI when ready.', 'botzio-ai' ) );
+        botzio_ai_store_analytics( $user_input, $offline_reply, $offline_reply );
+        wp_send_json_error(
+            array(
+                'message' => $offline_reply,
+            )
+        );
+    }
+
     $provider      = get_option( 'botzio_ai_provider', 'openrouter' );
     $api_key       = get_option( 'botzio_ai_api_key', '' );
     $model         = get_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
-    $custom_prompt = get_option( 'botzio_ai_custom_prompt', 'Answer only related to the current website, nothing else.' );
-    $error_message = get_option( 'botzio_ai_error_message', 'I can only answer questions related to this website.' );
+    $max_tokens    = botzio_ai_get_max_tokens();
+    $custom_prompt = botzio_ai_get_answer_rules();
+    $knowledge_health = botzio_ai_get_knowledge_health( $knowledge_base );
+    $focused_knowledge = botzio_ai_get_focused_knowledge_context( $knowledge_base, $user_input );
+    $length_instruction = botzio_ai_get_answer_length_instruction( $max_tokens );
+
+    if ( $knowledge_health['score'] < 25 && 'greeting' !== botzio_ai_get_message_intent( $user_input ) ) {
+        $thin_reply = botzio_ai_get_friendly_fallback( $user_input, $knowledge_base, $error_message );
+        botzio_ai_store_analytics( $user_input, $thin_reply, $error_message );
+        wp_send_json_success( $thin_reply );
+    }
 
     // Construct the final concise prompt with website content
-    $knowledge_base = get_option( 'botzio_ai_knowledge_base', '' );
     $final_prompt = "
     You are a helpful website assistant.
 
     Rules:
-    1. Only answer using the business information provided below.
+    1. Only answer using the focused business information provided below.
     2. Do not answer unrelated questions.
-    3. If the answer is not available in the business information, reply exactly with:
+    3. If the visitor question is vague, ask one short clarifying question instead of guessing.
+    4. If the answer is not available in the business information, reply exactly with:
     {$error_message}
-    4. Keep answers short, clear, and useful.
-    5. Format answers clearly using short paragraphs.
-    6. Use **bold headings** when helpful.
-    7. Use bullet points for lists.
-    8. Do not return HTML.
+    5. Do not invent prices, stock, policies, delivery details, contact details, guarantees, locations, or services.
+    6. Keep answers short, clear, and useful.
+    7. Format answers clearly using short paragraphs.
+    8. Use **bold headings** when helpful.
+    9. Use bullet points for lists.
+    10. Do not return HTML.
+    11. Answer length rule based on the admin setting: {$length_instruction}
+    12. Never end mid-sentence or mid-list. If the answer would be long, summarize the most important points instead of starting a long answer.
 
-    Business Information:
-    {$knowledge_base}
+    Focused Business Information:
+    {$focused_knowledge}
 
     Additional Admin Instruction:
     {$custom_prompt}
@@ -2755,12 +3761,26 @@ function botzio_ai_process() {
 
     // If there was an error with the AI request, return fallback message
     if ( is_wp_error( $result ) ) {
+        $provider_reply = __( 'I am having trouble connecting right now. Please try again in a moment.', 'botzio-ai' );
+        botzio_ai_record_ai_error( $provider, $model, $result->get_error_message() );
+        botzio_ai_store_analytics( $user_input, $provider_reply, $provider_reply );
         wp_send_json_error(
             array(
-                'message' => $result->get_error_message(),
+                'message' => $provider_reply,
             )
         );
-    } 
+    }
+
+    $clean_result        = trim( wp_strip_all_tags( (string) $result ) );
+    $clean_error_message = trim( wp_strip_all_tags( (string) $error_message ) );
+
+    if (
+        botzio_ai_is_incomplete_answer( $result, $user_input ) ||
+        ( '' !== $clean_error_message && strtolower( $clean_result ) === strtolower( $clean_error_message ) )
+    ) {
+        $result = botzio_ai_get_friendly_fallback( $user_input, $knowledge_base, $error_message );
+    }
+
     botzio_ai_store_analytics( $user_input, $result, $error_message );
     wp_send_json_success( $result );
 }
@@ -3221,8 +4241,8 @@ function botzio_ai_reset_settings() {
         'botzio_ai_provider'              => 'openrouter',
         'botzio_ai_api_key'               => '',
         'botzio_ai_model'                 => 'openrouter/free',
-        'botzio_ai_custom_prompt'         => 'Answer only related to the current website, nothing else.',
-        'botzio_ai_error_message'         => 'I can only answer questions related to this website.',
+        'botzio_ai_custom_prompt'         => botzio_ai_get_default_answer_rules(),
+        'botzio_ai_error_message'         => 'I do not have that information in the saved website knowledge yet.',
         'botzio_ai_welcome_message'       => 'Hello! Welcome to our website. How can I help you today?',
         'botzio_ai_knowledge_base'        => '',
         'botzio_ai_display_chatbot'       => 'yes',
@@ -3231,6 +4251,8 @@ function botzio_ai_reset_settings() {
         'botzio_ai_daily_limit'           => 30,
         'botzio_ai_starter_suggestions'   => "What products do you sell?\nWhat is your return policy?\nDo you offer Cash on Delivery?",
         'botzio_ai_cached_models'         => array(),
+        'botzio_ai_synced_source_ids'     => array(),
+        'botzio_ai_last_source_sync'      => 0,
     );
 
     foreach ( $defaults as $key => $value ) {
