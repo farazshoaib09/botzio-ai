@@ -159,7 +159,7 @@ function botzio_ai_get_answer_rules() {
         return botzio_ai_get_default_answer_rules();
     }
 
-    return $value;
+    return $value
 }
 
 function botzio_ai_get_default_pro_checkout_url() {
