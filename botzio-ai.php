@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.0.18
+Version: 1.0.19
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.0.18' );
+    define( 'BOTZIO_AI_VERSION', '1.0.19' );
 }
 
 function botzio_ai_is_pro_plugin_active() {

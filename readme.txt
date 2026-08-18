@@ -4,7 +4,7 @@ Tags: ai chatbot, wordpress chatbot, customer support, ai assistant, knowledge b
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.18
+Stable tag: 1.0.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -204,6 +204,10 @@ https://policies.google.com/privacy
 7. AI Connection setup with provider, API key, model selection, and verified connection status.
 
 == Changelog ==
+
+= 1.0.19 =
+* Added a PHP syntax check to the WordPress.org deployment workflow so tagged releases are blocked before SVN deployment if a PHP parse error is detected.
+* Improved release safety for CI/CD deployments.
 
 = 1.0.18 =
 * Improved Knowledge Sync guidance to help admins choose pages that produce better chatbot answers.

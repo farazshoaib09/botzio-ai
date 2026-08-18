@@ -13,6 +13,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check PHP syntax
+        run: find . -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 php -l
+
       - name: Deploy to WordPress.org
         uses: 10up/action-wordpress-plugin-deploy@stable
         env:
