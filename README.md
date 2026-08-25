@@ -13,7 +13,8 @@ Unlike a generic chatbot, Botzio is designed to stay focused on the website it i
 - Provides editable Answer Rules for safer, more consistent replies.
 - Adds starter questions visitors can tap when chat opens.
 - Includes chatbot appearance controls and admin preview.
-- Shows recent visitor questions and AI connection status.
+- Shows recent visitor questions, common topics, and AI connection status.
+- Suggests Knowledge Gaps from recent visitor questions and setup state.
 - Supports daily visitor message limits and adjustable answer length.
 
 ## Free vs Pro
@@ -28,6 +29,7 @@ Botzio AI Free provides the chatbot foundation:
 - Starter questions
 - Usage limits
 - Visitor question insights
+- Knowledge Gap Suggestions
 
 Botzio AI Pro is planned for advanced sales and support workflows:
 

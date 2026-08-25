@@ -2480,6 +2480,60 @@
   border-top: 1px solid #eef3f8;
 }
 
+.botzio-ai-panel-action {
+  margin-top: 12px;
+}
+
+.botzio-ai-knowledge-gaps-panel {
+  margin-top: 14px;
+}
+
+.botzio-ai-gap-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  list-style: none;
+}
+
+.botzio-ai-gap-list li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--botzio-admin-border);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.98)),
+    #ffffff;
+}
+
+.botzio-ai-gap-list .dashicons {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(23, 105, 255, 0.10);
+  color: var(--botzio-admin-primary);
+}
+
+.botzio-ai-gap-list strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--botzio-admin-text);
+  font-size: 13px;
+}
+
+.botzio-ai-gap-list p {
+  margin: 0;
+  color: var(--botzio-admin-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .botzio-ai-mini-empty {
   display: grid;
   place-items: center;
@@ -2651,6 +2705,10 @@
 @media (max-width: 1100px) {
   .botzio-ai-compact-overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .botzio-ai-gap-list {
+    grid-template-columns: 1fr;
   }
 
   .botzio-ai-plan-clarity-grid {

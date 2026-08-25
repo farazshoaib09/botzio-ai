@@ -4,7 +4,7 @@ Tags: ai chatbot, wordpress chatbot, customer support, ai assistant, knowledge b
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.19
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,6 +30,7 @@ Botzio AI is built for business owners, agencies, service providers, online stor
 - Add starter questions visitors can tap when chat opens.
 - Preview the chatbot before making it public.
 - See what visitors are asking and spot missing answers.
+- Find Knowledge Gap Suggestions based on recent visitor questions.
 - Check AI provider errors in admin without showing ugly technical messages to visitors.
 
 = Free Features =
@@ -52,6 +53,7 @@ Botzio AI is built for business owners, agencies, service providers, online stor
 - Admin-only chatbot preview mode
 - Admin-only AI error diagnostics
 - Recent visitor question insights
+- Knowledge Gap Suggestions from visitor questions
 - Daily visitor message limits
 - Adjustable AI temperature and response length
 - Floating chatbot interface
@@ -200,10 +202,15 @@ https://policies.google.com/privacy
 3. Main Botzio AI dashboard with connection, knowledge base, visitor chat, and launch progress status.
 4. Business Knowledge tab for adding website details, syncing selected pages/posts, checking readiness, and managing FAQs, policies, and support information.
 5. Chat Experience settings with a live admin preview of the chatbot style.
-6. Visitor Insights analytics showing total questions, common topics, review opportunities, and AI readiness.
+6. Visitor Insights analytics showing total questions, common topics, Knowledge Gap Suggestions, review opportunities, and AI readiness.
 7. AI Connection setup with provider, API key, model selection, and verified connection status.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added Knowledge Gap Suggestions based on setup state, synced pages, common visitor topics, and questions that may need better coverage.
+* Improved Visitor Insights with a clearer action path from weak/repeated questions to Business Knowledge updates.
+* Replaced ecommerce-biased starter questions with generic defaults that work better across service, local business, agency, and store websites.
 
 = 1.0.19 =
 * Added a PHP syntax check to the WordPress.org deployment workflow so tagged releases are blocked before SVN deployment if a PHP parse error is detected.

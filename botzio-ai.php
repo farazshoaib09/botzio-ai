@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.0.19
+Version: 1.1.0
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.0.19' );
+    define( 'BOTZIO_AI_VERSION', '1.1.0' );
 }
 
 function botzio_ai_is_pro_plugin_active() {
@@ -242,7 +242,7 @@ function botzio_ai_plugin_settings() {
         array(
             'type'              => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
-            'default'           => "What products do you sell?\nWhat is your return policy?\nDo you offer Cash on Delivery?",
+            'default'           => "What do you offer?\nHow can I contact you?\nWhat are your business hours?\nCan you help me choose the right option?",
         )
     );
 
@@ -617,7 +617,7 @@ function botzio_ai_bubble_position_field() {
 function botzio_ai_starter_suggestions_field() {
     $value = get_option(
         'botzio_ai_starter_suggestions',
-        "What products do you sell?\nWhat is your return policy?\nDo you offer Cash on Delivery?"
+        "What do you offer?\nHow can I contact you?\nWhat are your business hours?\nCan you help me choose the right option?"
     );
     ?>
     <textarea
@@ -1679,7 +1679,7 @@ function botzio_ai_settings_page() {
     $default_welcome   = 'Hello! Welcome to our website. How can I help you today?';
     $starter_suggestions = get_option(
         'botzio_ai_starter_suggestions',
-        "What products do you sell?\nWhat is your return policy?\nDo you offer Cash on Delivery?"
+        "What do you offer?\nHow can I contact you?\nWhat are your business hours?\nCan you help me choose the right option?"
     );
     $chat_title        = get_option( 'botzio_ai_chat_title', 'Chat Support' );
     $primary_color     = sanitize_hex_color( get_option( 'botzio_ai_primary_color', '#111111' ) );
@@ -1693,8 +1693,10 @@ function botzio_ai_settings_page() {
 
     if ( empty( $starter_questions ) ) {
         $starter_questions = array(
-            __( 'What products do you sell?', 'botzio-ai' ),
-            __( 'What is your return policy?', 'botzio-ai' ),
+            __( 'What do you offer?', 'botzio-ai' ),
+            __( 'How can I contact you?', 'botzio-ai' ),
+            __( 'What are your business hours?', 'botzio-ai' ),
+            __( 'Can you help me choose the right option?', 'botzio-ai' ),
             __( 'How can I contact support?', 'botzio-ai' ),
         );
     }
@@ -2209,6 +2211,12 @@ function botzio_ai_settings_page() {
         $needs_review_questions = botzio_ai_get_review_questions( $recent_questions );
         $needs_review_count = count( $needs_review_questions );
         $top_topic_count = ! empty( $question_topics ) ? max( $question_topics ) : 0;
+        $synced_source_ids = botzio_ai_sanitize_source_ids( get_option( 'botzio_ai_synced_source_ids', array() ) );
+        $setup_health_state = array(
+            'has_knowledge'          => $has_knowledge,
+            'synced_source_count'    => count( $synced_source_ids ),
+        );
+        $knowledge_gap_suggestions = botzio_ai_get_knowledge_gap_suggestions( $recent_questions, $question_topics, $setup_health_state );
         $free_features = array(
             array(
                 'icon'  => 'dashicons-admin-network',
@@ -2520,6 +2528,9 @@ function botzio_ai_settings_page() {
                                         </li>
                                     <?php endforeach; ?>
                                 </ul>
+                                <a class="button button-secondary botzio-ai-jump-tab botzio-ai-panel-action" href="#botzio-ai-tab-content">
+                                    <?php echo esc_html__( 'Improve Business Knowledge', 'botzio-ai' ); ?>
+                                </a>
                             <?php else : ?>
                                 <div class="botzio-ai-mini-empty">
                                     <span class="dashicons dashicons-yes-alt"></span>
@@ -2528,6 +2539,38 @@ function botzio_ai_settings_page() {
                                 </div>
                             <?php endif; ?>
                         </div>
+                    </div>
+
+                    <div class="botzio-ai-recent-questions-panel botzio-ai-knowledge-gaps-panel">
+                        <div class="botzio-ai-section-heading">
+                            <div>
+                                <p class="botzio-ai-eyebrow"><?php echo esc_html__( 'Knowledge Gaps', 'botzio-ai' ); ?></p>
+                                <h2><?php echo esc_html__( 'What to add next', 'botzio-ai' ); ?></h2>
+                            </div>
+                            <a class="button button-secondary botzio-ai-jump-tab" href="#botzio-ai-tab-content">
+                                <?php echo esc_html__( 'Open Knowledge', 'botzio-ai' ); ?>
+                            </a>
+                        </div>
+
+                        <?php if ( ! empty( $knowledge_gap_suggestions ) ) : ?>
+                            <ul class="botzio-ai-gap-list">
+                                <?php foreach ( $knowledge_gap_suggestions as $suggestion ) : ?>
+                                    <li>
+                                        <span class="dashicons dashicons-lightbulb"></span>
+                                        <div>
+                                            <strong><?php echo esc_html( $suggestion['label'] ); ?></strong>
+                                            <p><?php echo esc_html( $suggestion['detail'] ); ?></p>
+                                        </div>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else : ?>
+                            <div class="botzio-ai-mini-empty">
+                                <span class="dashicons dashicons-yes-alt"></span>
+                                <strong><?php echo esc_html__( 'No obvious gaps yet', 'botzio-ai' ); ?></strong>
+                                <p><?php echo esc_html__( 'As visitors ask more questions, Botzio will point out topics that need clearer knowledge.', 'botzio-ai' ); ?></p>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="botzio-ai-recent-questions-panel">
@@ -2903,7 +2946,7 @@ function botzio_ai_plugin_enqueue_scripts() {
 
     $starter_suggestions = get_option(
     'botzio_ai_starter_suggestions',
-    "What products do you sell?\nWhat is your return policy?\nDo you offer Cash on Delivery?"
+    "What do you offer?\nHow can I contact you?\nWhat are your business hours?\nCan you help me choose the right option?"
     );
 
     wp_localize_script(
@@ -3180,6 +3223,73 @@ function botzio_ai_get_review_questions( $recent_questions ) {
     }
 
     return $review_questions;
+}
+
+function botzio_ai_get_knowledge_gap_suggestions( $recent_questions, $question_topics, $state ) {
+    $suggestions = array();
+
+    if ( empty( $state['has_knowledge'] ) ) {
+        $suggestions[] = array(
+            'label'  => __( 'Start with business basics', 'botzio-ai' ),
+            'detail' => __( 'Botzio needs your offers, audience, policies, FAQs, and support details before it can answer well.', 'botzio-ai' ),
+        );
+    }
+
+    if ( empty( $state['synced_source_count'] ) ) {
+        $suggestions[] = array(
+            'label'  => __( 'Sync your strongest pages', 'botzio-ai' ),
+            'detail' => __( 'Choose pages like Services, About, FAQs, Contact, or Policies so Botzio has real site content to use.', 'botzio-ai' ),
+        );
+    }
+
+    foreach ( array_slice( $question_topics, 0, 3, true ) as $topic => $count ) {
+        $suggestions[] = array(
+            'label'  => sprintf(
+                /* translators: %s: visitor question topic */
+                __( 'Add clearer %s details', 'botzio-ai' ),
+                $topic
+            ),
+            'detail' => sprintf(
+                /* translators: 1: visitor question topic, 2: number of related questions */
+                _n( 'Visitors asked about %1$s %2$d time. Add a short section for it in Business Knowledge.', 'Visitors asked about %1$s %2$d times. Add a short section for it in Business Knowledge.', $count, 'botzio-ai' ),
+                $topic,
+                $count
+            ),
+        );
+    }
+
+    foreach ( array_slice( botzio_ai_get_review_questions( $recent_questions ), 0, 2 ) as $item ) {
+        $question = trim( botzio_ai_extract_question_text( $item ) );
+
+        if ( '' === $question ) {
+            continue;
+        }
+
+        $suggestions[] = array(
+            'label'  => __( 'Turn a weak question into knowledge', 'botzio-ai' ),
+            'detail' => sprintf(
+                /* translators: %s: visitor question */
+                __( 'Review "%s" and add the missing answer if visitors keep asking it.', 'botzio-ai' ),
+                $question
+            ),
+        );
+    }
+
+    $unique = array();
+    $clean  = array();
+
+    foreach ( $suggestions as $suggestion ) {
+        $key = strtolower( $suggestion['label'] . '|' . $suggestion['detail'] );
+
+        if ( isset( $unique[ $key ] ) ) {
+            continue;
+        }
+
+        $unique[ $key ] = true;
+        $clean[]        = $suggestion;
+    }
+
+    return array_slice( $clean, 0, 5 );
 }
 
 function botzio_ai_normalize_text( $text ) {
@@ -4252,7 +4362,7 @@ function botzio_ai_reset_settings() {
         'botzio_ai_temperature'           => 0.3,
         'botzio_ai_max_tokens'            => 150,
         'botzio_ai_daily_limit'           => 30,
-        'botzio_ai_starter_suggestions'   => "What products do you sell?\nWhat is your return policy?\nDo you offer Cash on Delivery?",
+        'botzio_ai_starter_suggestions'   => "What do you offer?\nHow can I contact you?\nWhat are your business hours?\nCan you help me choose the right option?",
         'botzio_ai_cached_models'         => array(),
         'botzio_ai_synced_source_ids'     => array(),
         'botzio_ai_last_source_sync'      => 0,
