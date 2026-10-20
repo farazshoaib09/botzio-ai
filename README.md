@@ -6,12 +6,14 @@ Unlike a generic chatbot, Botzio is designed to stay focused on the website it i
 
 ## What Botzio AI Does
 
-- Connects WordPress to OpenAI, Gemini, or OpenRouter.
+- Connects WordPress to OpenAI, Gemini, or OpenRouter and loads compatible models directly from the provider.
 - Lets admins build focused Business Knowledge for the chatbot.
 - Syncs up to 3 selected WordPress pages or posts in the free version.
 - Uses Smart Context Selection to send the most relevant saved knowledge to AI.
 - Provides editable Answer Rules for safer, more consistent replies.
 - Adds starter questions visitors can tap when chat opens.
+- Remembers the latest four exchanges so visitors can ask natural follow-up questions.
+- Collects helpful or not-helpful ratings and sends weak answers to Insights for review.
 - Includes chatbot appearance controls and admin preview.
 - Shows recent visitor questions, common topics, and AI connection status.
 - Suggests Knowledge Gaps from recent visitor questions and setup state.
@@ -27,6 +29,9 @@ Botzio AI Free provides the chatbot foundation:
 - Smart Context Selection
 - Chatbot styling
 - Starter questions
+- Short-term conversation memory
+- Visitor answer feedback
+- Admin controls for memory length, feedback visibility, and stored-answer review data
 - Usage limits
 - Visitor question insights
 - Knowledge Gap Suggestions

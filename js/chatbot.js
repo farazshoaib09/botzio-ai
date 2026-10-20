@@ -6,19 +6,109 @@ jQuery(document).ready(function ($) {
   // Variable to ensure the welcome message is shown only once
   let welcomeShown = false;
   let isSending = false;
+  const conversationKey = 'botzio_ai_conversation';
+  const historyKey = 'botzio_ai_conversation_messages';
+  const sessionKey = 'botzio_ai_session_id';
+  const memoryEnabled = Boolean(botzioAiFrontend.memory_enabled);
+  const memoryMessageLimit = Math.max(0, parseInt(botzioAiFrontend.memory_messages, 10) || 0);
+  const feedbackEnabled = Boolean(botzioAiFrontend.feedback_enabled);
+
+  function readStorage(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      // The chatbot still works when browser storage is blocked.
+    }
+  }
+
+  function removeStorage(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      // Nothing else is required when browser storage is blocked.
+    }
+  }
+
+  function loadConversationMessages() {
+    if (!memoryEnabled || !memoryMessageLimit) {
+      removeStorage(historyKey);
+      return [];
+    }
+
+    const stored = readStorage(historyKey);
+
+    if (!stored) return [];
+
+    try {
+      const messages = JSON.parse(stored);
+
+      if (!Array.isArray(messages)) return [];
+
+      return messages
+        .filter(function (item) {
+          return item && ['user', 'assistant'].includes(item.role) && typeof item.content === 'string';
+        })
+        .slice(-memoryMessageLimit);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  let conversationMessages = loadConversationMessages();
+
+  function createSessionId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+
+    return 'botzio-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+  }
+
+  function getSessionId() {
+    let sessionId = readStorage(sessionKey);
+
+    if (!sessionId) {
+      sessionId = createSessionId();
+      writeStorage(sessionKey, sessionId);
+    }
+
+    return sessionId;
+  }
+
+  function rememberMessage(role, content) {
+    if (!memoryEnabled || !memoryMessageLimit) return;
+
+    const cleanContent = String(content || '').trim().slice(0, 800);
+
+    if (!cleanContent || !['user', 'assistant'].includes(role)) return;
+
+    conversationMessages.push({ role: role, content: cleanContent });
+    conversationMessages = conversationMessages.slice(-memoryMessageLimit);
+    writeStorage(historyKey, JSON.stringify(conversationMessages));
+  }
 
   function saveConversation() {
-    localStorage.setItem(
-      'botzio_ai_conversation',
-      jQuery('#chatbot-window').html()
-    );
+    writeStorage(conversationKey, jQuery('#chatbot-window').html());
   }
 
   function loadSavedConversation() {
-    const saved = localStorage.getItem('botzio_ai_conversation');
+    const saved = readStorage(conversationKey);
 
     if (saved) {
       jQuery('#chatbot-window').html(saved);
+
+      if (!feedbackEnabled) {
+        jQuery('#chatbot-window .botzio-ai-answer-feedback').remove();
+      }
+
       welcomeShown = true;
 
       setTimeout(function () {
@@ -32,7 +122,25 @@ jQuery(document).ready(function ($) {
   }
 
   function clearSavedConversation() {
-    localStorage.removeItem('botzio_ai_conversation');
+    removeStorage(conversationKey);
+    removeStorage(historyKey);
+    removeStorage(sessionKey);
+    conversationMessages = [];
+  }
+
+  function feedbackMarkup(responseId) {
+    if (!feedbackEnabled || !responseId) return '';
+
+    return (
+      '<div class="botzio-ai-answer-feedback" data-response-id="' + escapeHtml(responseId) + '">' +
+        '<span>' + escapeHtml(botzioAiFrontend.feedback_prompt) + '</span>' +
+        '<div class="botzio-ai-feedback-actions">' +
+          '<button type="button" data-rating="helpful">' + escapeHtml(botzioAiFrontend.feedback_yes) + '</button>' +
+          '<button type="button" data-rating="not_helpful">' + escapeHtml(botzioAiFrontend.feedback_no) + '</button>' +
+        '</div>' +
+        '<small class="botzio-ai-feedback-result" aria-live="polite"></small>' +
+      '</div>'
+    );
   }
   function formatAiText(text) {
     let safe = escapeHtml(text);
@@ -113,7 +221,12 @@ jQuery(document).ready(function ($) {
     if (!text) return;
     jQuery('.botzio-ai-suggestions').remove();
 
+    const historyForRequest = memoryEnabled
+      ? conversationMessages.slice(-memoryMessageLimit)
+      : [];
+
     isSending = true;
+    rememberMessage('user', text);
 
     jQuery('#chatbot-input').prop('disabled', true);
     jQuery('#chatbot-send').prop('disabled', true);
@@ -141,6 +254,9 @@ jQuery(document).ready(function ($) {
       data: {
       action: 'botzio_ai_process',
       user_input: text,
+      history: JSON.stringify(historyForRequest),
+      session_id: getSessionId(),
+      page_url: window.location.href,
       nonce: botzioAiFrontend.nonce
 
     },
@@ -155,8 +271,12 @@ jQuery(document).ready(function ($) {
             typeof res.data === 'string'
               ? res.data
               : (res.data.message || 'I do not have enough information to answer that yet.');
+          const responseId = typeof res.data === 'object' && res.data.response_id
+            ? res.data.response_id
+            : '';
 
-          targetSpan.html(formatAiText(aiText));
+          targetSpan.html(formatAiText(aiText) + feedbackMarkup(responseId));
+          rememberMessage('assistant', aiText);
           saveConversation();
         } else {
           const errorMessage =
@@ -191,6 +311,47 @@ jQuery(document).ready(function ($) {
     jQuery('#chatbot-input').val(text);
 
     sendMessage();
+  });
+
+  jQuery(document).on('click', '.botzio-ai-answer-feedback button', function () {
+    const button = jQuery(this);
+    const feedback = button.closest('.botzio-ai-answer-feedback');
+    const buttons = feedback.find('button');
+    const result = feedback.find('.botzio-ai-feedback-result');
+    const rating = button.data('rating');
+
+    if (feedback.hasClass('is-saved')) return;
+
+    buttons.prop('disabled', true);
+    result.text(botzioAiFrontend.feedback_saving);
+
+    jQuery.ajax({
+      url: botzioAiFrontend.ajax_url,
+      method: 'POST',
+      dataType: 'json',
+      data: {
+        action: 'botzio_ai_save_answer_feedback',
+        response_id: feedback.data('response-id'),
+        rating: rating,
+        nonce: botzioAiFrontend.nonce
+      },
+      success: function (res) {
+        if (!res.success) {
+          buttons.prop('disabled', false);
+          result.text(res.data && res.data.message ? res.data.message : botzioAiFrontend.feedback_error);
+          return;
+        }
+
+        feedback.addClass('is-saved');
+        button.addClass('is-selected');
+        result.text(res.data.message || botzioAiFrontend.feedback_saved);
+        saveConversation();
+      },
+      error: function () {
+        buttons.prop('disabled', false);
+        result.text(botzioAiFrontend.feedback_error);
+      }
+    });
   });
   // Function to show the welcome message once
   function showWelcomeMessage() {
@@ -252,11 +413,11 @@ jQuery(document).ready(function ($) {
   }
 
   function saveChatOpenState(isOpen) {
-    localStorage.setItem('botzio_ai_is_open', isOpen ? 'yes' : 'no');
+    writeStorage('botzio_ai_is_open', isOpen ? 'yes' : 'no');
   }
 
   function isChatPreviouslyOpen() {
-    return localStorage.getItem('botzio_ai_is_open') === 'yes';
+    return readStorage('botzio_ai_is_open') === 'yes';
   }  
 
   

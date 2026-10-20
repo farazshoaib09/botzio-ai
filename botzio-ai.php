@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.1.0
+Version: 1.1.1
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.1.0' );
+    define( 'BOTZIO_AI_VERSION', '1.1.1' );
 }
 
 function botzio_ai_is_pro_plugin_active() {
@@ -63,7 +63,7 @@ function botzio_ai_get_pro_knowledge_sync_url() {
 function botzio_ai_is_ai_connection_ready() {
     $provider           = get_option( 'botzio_ai_provider', 'openrouter' );
     $api_key            = get_option( 'botzio_ai_api_key', '' );
-    $model              = get_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
+    $model              = get_option( 'botzio_ai_model', 'openrouter/free' );
     $verified           = get_option( 'botzio_ai_connection_verified', 'no' );
     $verified_provider  = get_option( 'botzio_ai_connection_verified_provider', '' );
     $verified_model     = get_option( 'botzio_ai_connection_verified_model', '' );
@@ -179,12 +179,17 @@ function botzio_ai_plugin_activate() {
 
     add_option( 'botzio_ai_display_chatbot', 'yes' );
     add_option( 'botzio_ai_provider', 'openrouter' );
-    add_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
+    add_option( 'botzio_ai_model', 'openrouter/free' );
     add_option( 'botzio_ai_cached_models', array() );
+    add_option( 'botzio_ai_cached_free_models', array() );
     add_option( 'botzio_ai_custom_prompt', botzio_ai_get_default_answer_rules() );
     add_option( 'botzio_ai_error_message', 'I do not have that information in the saved website knowledge yet.' );
     add_option( 'botzio_ai_welcome_message', 'Hello! Welcome to our website. How can I help you today?' );
     add_option( 'botzio_ai_synced_source_ids', array() );
+    add_option( 'botzio_ai_memory_enabled', 'yes' );
+    add_option( 'botzio_ai_memory_turns', 4 );
+    add_option( 'botzio_ai_feedback_enabled', 'yes' );
+    add_option( 'botzio_ai_store_answers', 'yes' );
 }
 register_activation_hook( __FILE__, 'botzio_ai_plugin_activate' );
 
@@ -308,6 +313,46 @@ function botzio_ai_plugin_settings() {
 
     register_setting(
         'botzio_ai_settings_group',
+        'botzio_ai_memory_enabled',
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'botzio_ai_sanitize_checkbox',
+            'default'           => 'yes',
+        )
+    );
+
+    register_setting(
+        'botzio_ai_settings_group',
+        'botzio_ai_memory_turns',
+        array(
+            'type'              => 'integer',
+            'sanitize_callback' => 'botzio_ai_sanitize_memory_turns',
+            'default'           => 4,
+        )
+    );
+
+    register_setting(
+        'botzio_ai_settings_group',
+        'botzio_ai_feedback_enabled',
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'botzio_ai_sanitize_checkbox',
+            'default'           => 'yes',
+        )
+    );
+
+    register_setting(
+        'botzio_ai_settings_group',
+        'botzio_ai_store_answers',
+        array(
+            'type'              => 'string',
+            'sanitize_callback' => 'botzio_ai_sanitize_checkbox',
+            'default'           => 'yes',
+        )
+    );
+
+    register_setting(
+        'botzio_ai_settings_group',
         'botzio_ai_knowledge_base',
         array(
             'type'              => 'string',
@@ -409,6 +454,13 @@ function botzio_ai_plugin_settings() {
         'botzio_ai_limits_section',
         __( 'Usage Controls', 'botzio-ai' ),
         '__return_false',
+        'botzio-ai-limits'
+    );
+
+    add_settings_section(
+        'botzio_ai_conversation_section',
+        __( 'Conversation & Feedback', 'botzio-ai' ),
+        'botzio_ai_conversation_section_description',
         'botzio-ai-limits'
     );
 
@@ -559,6 +611,46 @@ function botzio_ai_plugin_settings() {
         'botzio_ai_limits_section'
     );
 
+    add_settings_field(
+        'botzio_ai_memory_enabled',
+        __( 'Conversation Memory', 'botzio-ai' ),
+        'botzio_ai_memory_enabled_field',
+        'botzio-ai-limits',
+        'botzio_ai_conversation_section'
+    );
+
+    add_settings_field(
+        'botzio_ai_memory_turns',
+        __( 'Context Length', 'botzio-ai' ),
+        'botzio_ai_memory_turns_field',
+        'botzio-ai-limits',
+        'botzio_ai_conversation_section'
+    );
+
+    add_settings_field(
+        'botzio_ai_feedback_enabled',
+        __( 'Answer Feedback', 'botzio-ai' ),
+        'botzio_ai_feedback_enabled_field',
+        'botzio-ai-limits',
+        'botzio_ai_conversation_section'
+    );
+
+    add_settings_field(
+        'botzio_ai_store_answers',
+        __( 'Store Answers for Review', 'botzio-ai' ),
+        'botzio_ai_store_answers_field',
+        'botzio-ai-limits',
+        'botzio_ai_conversation_section'
+    );
+
+    add_settings_field(
+        'botzio_ai_clear_feedback_data',
+        __( 'Feedback Data', 'botzio-ai' ),
+        'botzio_ai_clear_feedback_data_field',
+        'botzio-ai-limits',
+        'botzio_ai_conversation_section'
+    );
+
     /**
      * Advanced tab
      */
@@ -576,6 +668,12 @@ function botzio_ai_sanitize_bubble_position( $value ) {
     $allowed = array( 'left', 'right' );
 
     return in_array( $value, $allowed, true ) ? $value : 'right';
+}
+
+function botzio_ai_sanitize_memory_turns( $value ) {
+    $value = absint( $value );
+
+    return in_array( $value, array( 2, 4 ), true ) ? $value : 4;
 }
 function botzio_ai_chat_title_field() {
     $value = get_option( 'botzio_ai_chat_title', 'Chat Support' );
@@ -675,6 +773,22 @@ function botzio_ai_cache_models_for_provider( $provider, $models ) {
     $cached_models[ $provider ] = $models;
 
     update_option( 'botzio_ai_cached_models', $cached_models );
+}
+
+function botzio_ai_get_cached_free_models() {
+    $cached_models = get_option( 'botzio_ai_cached_free_models', array() );
+
+    return is_array( $cached_models ) ? $cached_models : array();
+}
+
+function botzio_ai_cache_free_models_for_provider( $provider, $models ) {
+    $provider = botzio_ai_sanitize_provider( $provider );
+    $models   = is_array( $models ) ? array_values( array_unique( array_map( 'sanitize_text_field', $models ) ) ) : array();
+
+    $cached_models              = botzio_ai_get_cached_free_models();
+    $cached_models[ $provider ] = $models;
+
+    update_option( 'botzio_ai_cached_free_models', $cached_models );
 }
 
 function botzio_ai_after_settings_save_reset_verification( $option_name = '' ) {
@@ -847,7 +961,7 @@ function botzio_ai_test_connection() {
 
     $model = isset( $_POST['model'] )
         ? sanitize_text_field( wp_unslash( $_POST['model'] ) )
-        : get_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
+        : get_option( 'botzio_ai_model', 'openrouter/free' );
 
     if ( empty( $api_key ) ) {
         wp_send_json_error(
@@ -2207,6 +2321,7 @@ function botzio_ai_settings_page() {
         $recent_questions = get_option( 'botzio_ai_recent_questions', array() );
         $recent_questions = is_array( $recent_questions ) ? $recent_questions : array();
         $total_questions = max( absint( get_option( 'botzio_ai_total_questions', 0 ) ), count( $recent_questions ) );
+        $feedback_summary = botzio_ai_get_feedback_summary( $recent_questions );
         $question_topics = botzio_ai_get_question_topics( $recent_questions );
         $needs_review_questions = botzio_ai_get_review_questions( $recent_questions );
         $needs_review_count = count( $needs_review_questions );
@@ -2443,15 +2558,23 @@ function botzio_ai_settings_page() {
                 <div class="botzio-ai-analytics-layout">
                     <div class="botzio-ai-analytics-summary">
                         <div class="botzio-ai-analytics-metric">
-                            <span class="dashicons dashicons-format-chat"></span>
-                            <strong><?php echo esc_html( $total_chats ); ?></strong>
-                            <small><?php echo esc_html__( 'Visitor messages captured', 'botzio-ai' ); ?></small>
-                        </div>
-
-                        <div class="botzio-ai-analytics-metric">
                             <span class="dashicons dashicons-editor-help"></span>
                             <strong><?php echo esc_html( $total_questions ); ?></strong>
                             <small><?php echo esc_html__( 'Total visitor questions', 'botzio-ai' ); ?></small>
+                        </div>
+
+                        <div class="botzio-ai-analytics-metric">
+                            <span class="dashicons dashicons-thumbs-up"></span>
+                            <strong>
+                                <?php
+                                echo esc_html(
+                                    $feedback_summary['rated'] > 0
+                                        ? sprintf( '%d/%d', $feedback_summary['helpful'], $feedback_summary['rated'] )
+                                        : '-'
+                                );
+                                ?>
+                            </strong>
+                            <small><?php echo esc_html__( 'Answers rated helpful', 'botzio-ai' ); ?></small>
                         </div>
 
                         <div class="botzio-ai-analytics-metric">
@@ -2523,8 +2646,20 @@ function botzio_ai_settings_page() {
                                         <li>
                                             <span><?php echo esc_html( botzio_ai_extract_question_text( $item ) ); ?></span>
                                             <small>
-                                                <?php echo esc_html( is_array( $item ) && ! empty( $item['needs_review'] ) ? __( 'Check knowledge base coverage', 'botzio-ai' ) : __( 'Repeated or vague question', 'botzio-ai' ) ); ?>
+                                                <?php
+                                                if ( is_array( $item ) && isset( $item['rating'] ) && 'not_helpful' === $item['rating'] ) {
+                                                    echo esc_html__( 'Visitor marked this answer unhelpful', 'botzio-ai' );
+                                                } else {
+                                                    echo esc_html( is_array( $item ) && ! empty( $item['needs_review'] ) ? __( 'Check knowledge base coverage', 'botzio-ai' ) : __( 'Repeated or vague question', 'botzio-ai' ) );
+                                                }
+                                                ?>
                                             </small>
+                                            <?php if ( is_array( $item ) && ! empty( $item['answer'] ) ) : ?>
+                                                <details class="botzio-ai-review-answer">
+                                                    <summary><?php echo esc_html__( 'View Botzio answer', 'botzio-ai' ); ?></summary>
+                                                    <p><?php echo esc_html( $item['answer'] ); ?></p>
+                                                </details>
+                                            <?php endif; ?>
                                         </li>
                                     <?php endforeach; ?>
                                 </ul>
@@ -2599,7 +2734,14 @@ function botzio_ai_settings_page() {
                             <ul class="botzio-ai-recent-question-list">
                                 <?php foreach ( array_slice( $recent_questions, 0, 20 ) as $index => $item ) : ?>
                                     <li data-question-index="<?php echo esc_attr( $index ); ?>">
-                                        <span><?php echo esc_html( isset( $item['question'] ) ? $item['question'] : '' ); ?></span>
+                                        <span>
+                                            <?php echo esc_html( isset( $item['question'] ) ? $item['question'] : '' ); ?>
+                                            <?php if ( is_array( $item ) && ! empty( $item['rating'] ) ) : ?>
+                                                <em class="botzio-ai-question-rating <?php echo 'helpful' === $item['rating'] ? 'is-helpful' : 'is-not-helpful'; ?>">
+                                                    <?php echo esc_html( 'helpful' === $item['rating'] ? __( 'Helpful', 'botzio-ai' ) : __( 'Needs review', 'botzio-ai' ) ); ?>
+                                                </em>
+                                            <?php endif; ?>
+                                        </span>
                                         <time>
                                             <?php
                                             echo esc_html(
@@ -2743,7 +2885,7 @@ function botzio_ai_provider_field() {
         <option value="gemini" <?php selected( $value, 'gemini' ); ?>>Gemini</option>
     </select>
 
-    <p class="description" id="botzio-ai-provider-help-text">Need an API key? Create one from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">OpenRouter API Keys</a>. Recommended starter model: <code>openrouter/free</code>.</p>
+    <p class="description" id="botzio-ai-provider-help-text">Need an API key? Create one from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">OpenRouter API Keys</a>. Model availability changes, so use Find Models to load the current options for your account.</p>
     <?php
 }
 
@@ -2770,7 +2912,7 @@ function botzio_ai_api_key_field() {
 }
 
 function botzio_ai_model_field() {
-    $value = get_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
+    $value = get_option( 'botzio_ai_model', 'openrouter/free' );
     $provider = get_option( 'botzio_ai_provider', 'openrouter' );
     $cached_models = botzio_ai_get_cached_models();
     $has_cached_models = ! empty( $cached_models[ $provider ] );
@@ -2907,6 +3049,81 @@ function botzio_ai_daily_limit_field() {
     <?php
 }
 
+function botzio_ai_conversation_section_description() {
+    ?>
+    <p class="description">
+        <?php echo esc_html__( 'Control how much recent context Botzio uses and whether visitors can rate answers. Conversation context stays in the visitor browser; answer review data is stored on this WordPress site.', 'botzio-ai' ); ?>
+    </p>
+    <?php
+}
+
+function botzio_ai_memory_enabled_field() {
+    $value = get_option( 'botzio_ai_memory_enabled', 'yes' );
+    ?>
+    <label>
+        <input type="hidden" name="botzio_ai_memory_enabled" value="no" />
+        <input type="checkbox" id="botzio-ai-memory-enabled" name="botzio_ai_memory_enabled" value="yes" <?php checked( $value, 'yes' ); ?> />
+        <?php echo esc_html__( 'Remember recent exchanges so Botzio can understand follow-up questions.', 'botzio-ai' ); ?>
+    </label>
+    <p class="description">
+        <?php echo esc_html__( 'Turn this off when every visitor message should be treated as a separate question.', 'botzio-ai' ); ?>
+    </p>
+    <?php
+}
+
+function botzio_ai_memory_turns_field() {
+    $value = botzio_ai_sanitize_memory_turns( get_option( 'botzio_ai_memory_turns', 4 ) );
+    ?>
+    <select id="botzio-ai-memory-turns" name="botzio_ai_memory_turns">
+        <option value="2" <?php selected( $value, 2 ); ?>><?php echo esc_html__( '2 exchanges', 'botzio-ai' ); ?></option>
+        <option value="4" <?php selected( $value, 4 ); ?>><?php echo esc_html__( '4 exchanges', 'botzio-ai' ); ?></option>
+    </select>
+    <p class="description">
+        <?php echo esc_html__( 'More context improves follow-up answers but sends more conversation text to the selected AI provider.', 'botzio-ai' ); ?>
+    </p>
+    <?php
+}
+
+function botzio_ai_feedback_enabled_field() {
+    $value = get_option( 'botzio_ai_feedback_enabled', 'yes' );
+    ?>
+    <label>
+        <input type="hidden" name="botzio_ai_feedback_enabled" value="no" />
+        <input type="checkbox" name="botzio_ai_feedback_enabled" value="yes" <?php checked( $value, 'yes' ); ?> />
+        <?php echo esc_html__( 'Show helpful and not-helpful buttons beneath successful answers.', 'botzio-ai' ); ?>
+    </label>
+    <p class="description">
+        <?php echo esc_html__( 'Not-helpful ratings are added to Questions to improve in Insights.', 'botzio-ai' ); ?>
+    </p>
+    <?php
+}
+
+function botzio_ai_store_answers_field() {
+    $value = get_option( 'botzio_ai_store_answers', 'yes' );
+    ?>
+    <label>
+        <input type="hidden" name="botzio_ai_store_answers" value="no" />
+        <input type="checkbox" name="botzio_ai_store_answers" value="yes" <?php checked( $value, 'yes' ); ?> />
+        <?php echo esc_html__( 'Save Botzio replies with recent visitor questions so administrators can review weak answers.', 'botzio-ai' ); ?>
+    </label>
+    <p class="description">
+        <?php echo esc_html__( 'Disable this for stricter data minimization. Questions and ratings can still be recorded without saving the reply text.', 'botzio-ai' ); ?>
+    </p>
+    <?php
+}
+
+function botzio_ai_clear_feedback_data_field() {
+    ?>
+    <button type="button" class="button button-secondary" id="botzio-ai-clear-feedback-data">
+        <?php echo esc_html__( 'Clear Ratings & Stored Answers', 'botzio-ai' ); ?>
+    </button>
+    <span id="botzio-ai-clear-feedback-result" class="botzio-ai-inline-result" aria-live="polite"></span>
+    <p class="description">
+        <?php echo esc_html__( 'Removes answer ratings and saved reply text while keeping visitor questions and topic analytics.', 'botzio-ai' ); ?>
+    </p>
+    <?php
+}
+
 /**
  * Enqueue frontend assets
  */
@@ -2961,6 +3178,15 @@ function botzio_ai_plugin_enqueue_scripts() {
                     explode( "\n", $starter_suggestions )
                 )
             ),
+            'feedback_prompt'     => __( 'Was this answer helpful?', 'botzio-ai' ),
+            'feedback_yes'        => __( 'Yes', 'botzio-ai' ),
+            'feedback_no'         => __( 'No', 'botzio-ai' ),
+            'feedback_saving'     => __( 'Saving...', 'botzio-ai' ),
+            'feedback_saved'      => __( 'Thanks for your feedback.', 'botzio-ai' ),
+            'feedback_error'      => __( 'Feedback could not be saved. Please try again.', 'botzio-ai' ),
+            'memory_enabled'      => 'yes' === get_option( 'botzio_ai_memory_enabled', 'yes' ),
+            'memory_messages'     => botzio_ai_sanitize_memory_turns( get_option( 'botzio_ai_memory_turns', 4 ) ) * 2,
+            'feedback_enabled'    => 'yes' === get_option( 'botzio_ai_feedback_enabled', 'yes' ),
             'nonce'               => wp_create_nonce( 'botzio_ai_nonce' ),
         )
     );
@@ -2994,9 +3220,13 @@ function botzio_ai_admin_enqueue_scripts( $hook ) {
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'botzio_ai_nonce' ),
             'cached_models'       => botzio_ai_get_cached_models(),
+            'cached_free_models'  => botzio_ai_get_cached_free_models(),
             'connection_verified' => botzio_ai_is_ai_connection_ready(),
             'verified_provider'   => get_option( 'botzio_ai_connection_verified_provider', '' ),
             'verified_model'      => get_option( 'botzio_ai_connection_verified_model', '' ),
+            'clear_feedback_confirm' => __( 'Clear all answer ratings and stored Botzio replies? Visitor questions and topic analytics will remain.', 'botzio-ai' ),
+            'clear_feedback_working' => __( 'Clearing...', 'botzio-ai' ),
+            'clear_feedback_error'   => __( 'Could not clear the review data. Please try again.', 'botzio-ai' ),
         )
     );
 }
@@ -3731,7 +3961,105 @@ function botzio_ai_is_incomplete_answer( $answer, $question ) {
     return false;
 }
 
-function botzio_ai_store_analytics( $message, $answer = '', $error_message = '' ) {
+function botzio_ai_limit_conversation_text( $text, $limit = 800 ) {
+    $text  = trim( sanitize_textarea_field( (string) $text ) );
+    $limit = max( 1, absint( $limit ) );
+
+    if ( function_exists( 'mb_substr' ) ) {
+        return mb_substr( $text, 0, $limit );
+    }
+
+    return substr( $text, 0, $limit );
+}
+
+function botzio_ai_sanitize_conversation_history( $history ) {
+    if ( is_string( $history ) ) {
+        $history = json_decode( $history, true );
+    }
+
+    if ( ! is_array( $history ) ) {
+        return array();
+    }
+
+    $clean_history = array();
+    $total_length  = 0;
+    $message_limit = botzio_ai_sanitize_memory_turns( get_option( 'botzio_ai_memory_turns', 4 ) ) * 2;
+
+    foreach ( array_slice( $history, -$message_limit ) as $item ) {
+        if ( ! is_array( $item ) || empty( $item['role'] ) || ! isset( $item['content'] ) ) {
+            continue;
+        }
+
+        $role = sanitize_key( $item['role'] );
+
+        if ( ! in_array( $role, array( 'user', 'assistant' ), true ) ) {
+            continue;
+        }
+
+        $content = botzio_ai_limit_conversation_text( $item['content'], 800 );
+
+        if ( '' === $content ) {
+            continue;
+        }
+
+        if ( $total_length + strlen( $content ) > 4000 ) {
+            break;
+        }
+
+        $clean_history[] = array(
+            'role'    => $role,
+            'content' => $content,
+        );
+        $total_length   += strlen( $content );
+    }
+
+    return $clean_history;
+}
+
+function botzio_ai_sanitize_session_id( $session_id ) {
+    $session_id = preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $session_id );
+
+    return substr( $session_id, 0, 64 );
+}
+
+function botzio_ai_sanitize_page_context( $page_url ) {
+    $page_url = esc_url_raw( (string) $page_url );
+
+    if ( '' === $page_url ) {
+        return '';
+    }
+
+    $path = wp_parse_url( $page_url, PHP_URL_PATH );
+
+    return is_string( $path ) ? substr( $path, 0, 240 ) : '';
+}
+
+function botzio_ai_get_feedback_summary( $recent_questions ) {
+    $summary = array(
+        'rated'       => 0,
+        'helpful'     => 0,
+        'not_helpful' => 0,
+    );
+
+    if ( ! is_array( $recent_questions ) ) {
+        return $summary;
+    }
+
+    foreach ( $recent_questions as $item ) {
+        $rating = is_array( $item ) && isset( $item['rating'] ) ? sanitize_key( $item['rating'] ) : '';
+
+        if ( ! in_array( $rating, array( 'helpful', 'not_helpful' ), true ) ) {
+            continue;
+        }
+
+        $summary['rated']++;
+        $summary[ $rating ]++;
+    }
+
+    return $summary;
+}
+
+function botzio_ai_store_analytics( $message, $answer = '', $error_message = '', $context = array() ) {
 
     $total_chats = absint( get_option( 'botzio_ai_total_chats', 0 ) );
     update_option( 'botzio_ai_total_chats', $total_chats + 1 );
@@ -3754,21 +4082,141 @@ function botzio_ai_store_analytics( $message, $answer = '', $error_message = '' 
         $answered = strtolower( $clean_answer ) !== strtolower( $error_message );
     }
 
+    $response_id = wp_generate_uuid4();
+    $session_id  = isset( $context['session_id'] ) ? botzio_ai_sanitize_session_id( $context['session_id'] ) : '';
+    $page_path   = isset( $context['page_url'] ) ? botzio_ai_sanitize_page_context( $context['page_url'] ) : '';
+
     array_unshift(
         $recent_questions,
         array(
+            'response_id'  => $response_id,
+            'session_id'   => $session_id,
             'question'     => $clean_message,
+            'answer'       => 'yes' === get_option( 'botzio_ai_store_answers', 'yes' ) ? botzio_ai_limit_conversation_text( $clean_answer, 1500 ) : '',
             'time'         => current_time( 'timestamp' ),
             'topic'        => botzio_ai_get_question_topic_label( $clean_message ),
             'answered'     => $answered,
             'needs_review' => ! $answered,
+            'rating'       => '',
+            'page_path'    => $page_path,
         )
     );
 
     $recent_questions = array_slice( $recent_questions, 0, 50 );
 
-    update_option( 'botzio_ai_recent_questions', $recent_questions );
+    update_option( 'botzio_ai_recent_questions', $recent_questions, false );
+
+    return $response_id;
 }
+
+function botzio_ai_save_answer_feedback() {
+    check_ajax_referer( 'botzio_ai_nonce', 'nonce' );
+
+    if ( 'yes' !== get_option( 'botzio_ai_feedback_enabled', 'yes' ) ) {
+        wp_send_json_error(
+            array(
+                'message' => __( 'Answer feedback is currently disabled.', 'botzio-ai' ),
+            ),
+            403
+        );
+    }
+
+    $response_id = isset( $_POST['response_id'] ) ? sanitize_text_field( wp_unslash( $_POST['response_id'] ) ) : '';
+    $rating      = isset( $_POST['rating'] ) ? sanitize_key( wp_unslash( $_POST['rating'] ) ) : '';
+
+    if ( '' === $response_id || ! in_array( $rating, array( 'helpful', 'not_helpful' ), true ) ) {
+        wp_send_json_error(
+            array(
+                'message' => __( 'That feedback could not be saved.', 'botzio-ai' ),
+            ),
+            400
+        );
+    }
+
+    $recent_questions = get_option( 'botzio_ai_recent_questions', array() );
+    $updated          = false;
+
+    if ( is_array( $recent_questions ) ) {
+        foreach ( $recent_questions as &$item ) {
+            if ( ! is_array( $item ) || empty( $item['response_id'] ) || ! hash_equals( (string) $item['response_id'], $response_id ) ) {
+                continue;
+            }
+
+            $item['rating']       = $rating;
+            $item['needs_review'] = 'not_helpful' === $rating || ! empty( $item['needs_review'] );
+            $updated              = true;
+            break;
+        }
+        unset( $item );
+    }
+
+    if ( ! $updated ) {
+        wp_send_json_error(
+            array(
+                'message' => __( 'This answer is no longer available for feedback.', 'botzio-ai' ),
+            ),
+            404
+        );
+    }
+
+    update_option( 'botzio_ai_recent_questions', $recent_questions, false );
+
+    wp_send_json_success(
+        array(
+            'message' => 'helpful' === $rating
+                ? __( 'Thanks. That helps us understand what worked.', 'botzio-ai' )
+                : __( 'Thanks. The site owner can now review this answer.', 'botzio-ai' ),
+        )
+    );
+}
+add_action( 'wp_ajax_botzio_ai_save_answer_feedback', 'botzio_ai_save_answer_feedback' );
+add_action( 'wp_ajax_nopriv_botzio_ai_save_answer_feedback', 'botzio_ai_save_answer_feedback' );
+
+function botzio_ai_clear_feedback_data() {
+    check_ajax_referer( 'botzio_ai_nonce', 'nonce' );
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error(
+            array(
+                'message' => __( 'Permission denied.', 'botzio-ai' ),
+            ),
+            403
+        );
+    }
+
+    $recent_questions = get_option( 'botzio_ai_recent_questions', array() );
+    $cleared          = 0;
+
+    if ( is_array( $recent_questions ) ) {
+        foreach ( $recent_questions as &$item ) {
+            if ( ! is_array( $item ) ) {
+                continue;
+            }
+
+            if ( ! empty( $item['rating'] ) || ! empty( $item['answer'] ) ) {
+                $cleared++;
+            }
+
+            $item['rating']       = '';
+            $item['answer']       = '';
+            $item['needs_review'] = isset( $item['answered'] ) ? ! $item['answered'] : ! empty( $item['needs_review'] );
+        }
+        unset( $item );
+    }
+
+    update_option( 'botzio_ai_recent_questions', $recent_questions, false );
+
+    wp_send_json_success(
+        array(
+            'message' => sprintf(
+                /* translators: %d: number of analytics records cleared */
+                _n( 'Cleared feedback data from %d record.', 'Cleared feedback data from %d records.', $cleared, 'botzio-ai' ),
+                $cleared
+            ),
+        )
+    );
+}
+add_action( 'wp_ajax_botzio_ai_clear_feedback_data', 'botzio_ai_clear_feedback_data' );
 
 /**
  * AJAX processor
@@ -3802,25 +4250,42 @@ function botzio_ai_process() {
     }
 
     // Sanitize and retrieve options
-    $user_input    = sanitize_text_field( wp_unslash( $_POST['user_input'] ) );
-    $knowledge_base = get_option( 'botzio_ai_knowledge_base', '' );
-    $error_message = get_option( 'botzio_ai_error_message', 'I do not have that information in the saved website knowledge yet.' );
-    $clarification = botzio_ai_get_clarification_reply( $user_input );
+    $user_input           = sanitize_text_field( wp_unslash( $_POST['user_input'] ) );
+    $conversation_history = 'yes' === get_option( 'botzio_ai_memory_enabled', 'yes' ) && isset( $_POST['history'] )
+        ? botzio_ai_sanitize_conversation_history( wp_unslash( $_POST['history'] ) )
+        : array();
+    $request_context      = array(
+        'session_id' => isset( $_POST['session_id'] ) ? botzio_ai_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '',
+        'page_url'   => isset( $_POST['page_url'] ) ? esc_url_raw( wp_unslash( $_POST['page_url'] ) ) : '',
+    );
+    $knowledge_base       = get_option( 'botzio_ai_knowledge_base', '' );
+    $error_message        = get_option( 'botzio_ai_error_message', 'I do not have that information in the saved website knowledge yet.' );
+    $clarification        = botzio_ai_get_clarification_reply( $user_input );
 
     if ( 'greeting' === botzio_ai_get_message_intent( $user_input ) ) {
         $greeting_reply = botzio_ai_get_greeting_reply();
-        botzio_ai_store_analytics( $user_input, $greeting_reply, $error_message );
-        wp_send_json_success( $greeting_reply );
+        $response_id    = botzio_ai_store_analytics( $user_input, $greeting_reply, $error_message, $request_context );
+        wp_send_json_success(
+            array(
+                'message'     => $greeting_reply,
+                'response_id' => $response_id,
+            )
+        );
     }
 
     if ( '' !== $clarification ) {
-        botzio_ai_store_analytics( $user_input, $clarification, $error_message );
-        wp_send_json_success( $clarification );
+        $response_id = botzio_ai_store_analytics( $user_input, $clarification, $error_message, $request_context );
+        wp_send_json_success(
+            array(
+                'message'     => $clarification,
+                'response_id' => $response_id,
+            )
+        );
     }
 
     if ( ! botzio_ai_is_ai_connection_ready() ) {
         $offline_reply = botzio_ai_get_friendly_fallback( $user_input, $knowledge_base, __( 'The chatbot is not connected to AI yet. The site owner can prepare business knowledge now and connect AI when ready.', 'botzio-ai' ) );
-        botzio_ai_store_analytics( $user_input, $offline_reply, $offline_reply );
+        botzio_ai_store_analytics( $user_input, $offline_reply, $offline_reply, $request_context );
         wp_send_json_error(
             array(
                 'message' => $offline_reply,
@@ -3830,7 +4295,7 @@ function botzio_ai_process() {
 
     $provider      = get_option( 'botzio_ai_provider', 'openrouter' );
     $api_key       = get_option( 'botzio_ai_api_key', '' );
-    $model         = get_option( 'botzio_ai_model', 'openai/gpt-oss-20b:free' );
+    $model         = get_option( 'botzio_ai_model', 'openrouter/free' );
     $max_tokens    = botzio_ai_get_max_tokens();
     $custom_prompt = botzio_ai_get_answer_rules();
     $knowledge_health = botzio_ai_get_knowledge_health( $knowledge_base );
@@ -3839,8 +4304,13 @@ function botzio_ai_process() {
 
     if ( $knowledge_health['score'] < 25 && 'greeting' !== botzio_ai_get_message_intent( $user_input ) ) {
         $thin_reply = botzio_ai_get_friendly_fallback( $user_input, $knowledge_base, $error_message );
-        botzio_ai_store_analytics( $user_input, $thin_reply, $error_message );
-        wp_send_json_success( $thin_reply );
+        $response_id = botzio_ai_store_analytics( $user_input, $thin_reply, $error_message, $request_context );
+        wp_send_json_success(
+            array(
+                'message'     => $thin_reply,
+                'response_id' => $response_id,
+            )
+        );
     }
 
     // Construct the final concise prompt with website content
@@ -3870,13 +4340,13 @@ function botzio_ai_process() {
     ";
 
     // Call the AI provider function
-    $result = botzio_ai_call_provider( $provider, $api_key, $model, $final_prompt, $user_input );
+    $result = botzio_ai_call_provider( $provider, $api_key, $model, $final_prompt, $user_input, $conversation_history );
 
     // If there was an error with the AI request, return fallback message
     if ( is_wp_error( $result ) ) {
         $provider_reply = __( 'I am having trouble connecting right now. Please try again in a moment.', 'botzio-ai' );
         botzio_ai_record_ai_error( $provider, $model, $result->get_error_message() );
-        botzio_ai_store_analytics( $user_input, $provider_reply, $provider_reply );
+        botzio_ai_store_analytics( $user_input, $provider_reply, $provider_reply, $request_context );
         wp_send_json_error(
             array(
                 'message' => $provider_reply,
@@ -3894,8 +4364,13 @@ function botzio_ai_process() {
         $result = botzio_ai_get_friendly_fallback( $user_input, $knowledge_base, $error_message );
     }
 
-    botzio_ai_store_analytics( $user_input, $result, $error_message );
-    wp_send_json_success( $result );
+    $response_id = botzio_ai_store_analytics( $user_input, $result, $error_message, $request_context );
+    wp_send_json_success(
+        array(
+            'message'     => $result,
+            'response_id' => $response_id,
+        )
+    );
 }
 add_action( 'wp_ajax_botzio_ai_process', 'botzio_ai_process' );
 add_action( 'wp_ajax_nopriv_botzio_ai_process', 'botzio_ai_process' );
@@ -3941,6 +4416,8 @@ function botzio_ai_fetch_models() {
         );
     }
 
+    $free_models = array();
+
     switch ( $provider ) {
         case 'openai':
             $models = botzio_ai_fetch_openai_models( $api_key );
@@ -3952,7 +4429,15 @@ function botzio_ai_fetch_models() {
 
         case 'openrouter':
         default:
-            $models = botzio_ai_fetch_openrouter_models( $api_key );
+            $openrouter_result = botzio_ai_fetch_openrouter_models( $api_key );
+
+            if ( is_wp_error( $openrouter_result ) ) {
+                $models = $openrouter_result;
+                break;
+            }
+
+            $models      = isset( $openrouter_result['models'] ) ? $openrouter_result['models'] : array();
+            $free_models = isset( $openrouter_result['free_models'] ) ? $openrouter_result['free_models'] : array();
             break;
     }
 
@@ -3965,10 +4450,12 @@ function botzio_ai_fetch_models() {
     }
 
     botzio_ai_cache_models_for_provider( $provider, $models );
+    botzio_ai_cache_free_models_for_provider( $provider, $free_models );
 
     wp_send_json_success(
         array(
-            'models' => $models,
+            'models'      => $models,
+            'free_models' => $free_models,
         )
     );
 }
@@ -3995,17 +4482,30 @@ function botzio_ai_fetch_openai_models( $api_key ) {
         return new WP_Error( 'openai_models_error', 'Unable to fetch OpenAI models.' );
     }
 
-    $models = array('gpt-4o-mini','gpt-4o');
+    $models = array();
 
     foreach ( $body['data'] as $model ) {
-        if ( ! empty( $model['id'] ) ) {
-            $models[] = sanitize_text_field( $model['id'] );
+        if ( empty( $model['id'] ) ) {
+            continue;
         }
+
+        $model_id = sanitize_text_field( $model['id'] );
+
+        if ( ! preg_match( '/^(gpt-|o[1-9](?:-|$)|chatgpt-)/i', $model_id ) ) {
+            continue;
+        }
+
+        if ( preg_match( '/(audio|realtime|transcribe|tts|image|search|moderation)/i', $model_id ) ) {
+            continue;
+        }
+
+        $models[] = $model_id;
     }
 
-    sort( $models );
+    $models = array_values( array_unique( $models ) );
+    natcasesort( $models );
 
-    return $models;
+    return array_values( $models );
 }
 
 function botzio_ai_fetch_gemini_models( $api_key ) {
@@ -4044,38 +4544,30 @@ function botzio_ai_fetch_gemini_models( $api_key ) {
 
         $model_name = str_replace( 'models/', '', $model['name'] );
 
-        // Keep only common chatbot-friendly Gemini models.
-        if (
-            false !== strpos( $model_name, 'flash' ) ||
-            false !== strpos( $model_name, 'pro' )
-        ) {
-            $models[] = sanitize_text_field( $model_name );
+        if ( 0 !== strpos( $model_name, 'gemini-' ) ) {
+            continue;
         }
+
+        if ( preg_match( '/(embedding|image|tts|audio|live|robotics|computer-use|aqa)/i', $model_name ) ) {
+            continue;
+        }
+
+        $models[] = sanitize_text_field( $model_name );
     }
 
-    $models = array_unique( $models );
-
-    $preferred_order = array(
-        'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-    );
+    $models = array_values( array_unique( $models ) );
 
     usort(
         $models,
-        function ( $a, $b ) use ( $preferred_order ) {
-            $a_index = array_search( $a, $preferred_order, true );
-            $b_index = array_search( $b, $preferred_order, true );
+        function ( $a, $b ) {
+            $a_is_preview = (bool) preg_match( '/(preview|exp)/i', $a );
+            $b_is_preview = (bool) preg_match( '/(preview|exp)/i', $b );
 
-            $a_index = false === $a_index ? 999 : $a_index;
-            $b_index = false === $b_index ? 999 : $b_index;
-
-            if ( $a_index === $b_index ) {
-                return strcmp( $a, $b );
+            if ( $a_is_preview !== $b_is_preview ) {
+                return $a_is_preview ? 1 : -1;
             }
 
-            return $a_index - $b_index;
+            return strnatcasecmp( $b, $a );
         }
     );
 
@@ -4092,7 +4584,7 @@ function botzio_ai_fetch_openrouter_models( $api_key = '' ) {
     }
 
     $response = wp_remote_get(
-        'https://openrouter.ai/api/v1/models',
+        'https://openrouter.ai/api/v1/models?output_modalities=text&sort=top-weekly',
         array(
             'headers' => $headers,
             'timeout' => botzio_ai_get_request_timeout(),
@@ -4109,7 +4601,8 @@ function botzio_ai_fetch_openrouter_models( $api_key = '' ) {
         return new WP_Error( 'openrouter_models_error', 'Unable to fetch OpenRouter models.' );
     }
 
-    $models = array();
+    $free_models = array();
+    $paid_models = array();
 
     foreach ( $body['data'] as $model ) {
         if ( empty( $model['id'] ) ) {
@@ -4117,54 +4610,102 @@ function botzio_ai_fetch_openrouter_models( $api_key = '' ) {
         }
 
         $model_id = sanitize_text_field( $model['id'] );
+        $outputs  = isset( $model['architecture']['output_modalities'] ) && is_array( $model['architecture']['output_modalities'] )
+            ? $model['architecture']['output_modalities']
+            : array( 'text' );
 
-        if ( false !== strpos( $model_id, ':free' ) || 'openrouter/free' === $model_id ) {
-            $models[] = $model_id;
+        if ( ! in_array( 'text', $outputs, true ) ) {
+            continue;
+        }
+
+        $prompt_price     = isset( $model['pricing']['prompt'] ) ? (float) $model['pricing']['prompt'] : null;
+        $completion_price = isset( $model['pricing']['completion'] ) ? (float) $model['pricing']['completion'] : null;
+        $is_free          = 'openrouter/free' === $model_id || false !== strpos( $model_id, ':free' ) || ( 0.0 === $prompt_price && 0.0 === $completion_price );
+
+        if ( $is_free ) {
+            $free_models[] = $model_id;
+        } else {
+            $paid_models[] = $model_id;
         }
     }
 
-    sort( $models );
+    $free_models = array_values( array_unique( $free_models ) );
+    $paid_models = array_values( array_unique( $paid_models ) );
 
-    return $models;
+    // OpenRouter documents this stable alias as its rotating free-model router.
+    if ( ! in_array( 'openrouter/free', $free_models, true ) ) {
+        array_unshift( $free_models, 'openrouter/free' );
+    }
+
+    usort(
+        $free_models,
+        function ( $a, $b ) {
+            if ( 'openrouter/free' === $a ) {
+                return -1;
+            }
+
+            if ( 'openrouter/free' === $b ) {
+                return 1;
+            }
+
+            return strnatcasecmp( $a, $b );
+        }
+    );
+
+    return array(
+        'models'      => array_merge( $free_models, $paid_models ),
+        'free_models' => $free_models,
+    );
 }
 
 /**
  * Route provider calls
  */
-function botzio_ai_call_provider( $provider, $api_key, $model, $prompt, $user_input ) {
+function botzio_ai_build_provider_messages( $prompt, $user_input, $history = array() ) {
+    $messages = array(
+        array(
+            'role'    => 'system',
+            'content' => $prompt,
+        ),
+    );
+
+    foreach ( botzio_ai_sanitize_conversation_history( $history ) as $item ) {
+        $messages[] = $item;
+    }
+
+    $messages[] = array(
+        'role'    => 'user',
+        'content' => botzio_ai_limit_conversation_text( $user_input, 1000 ),
+    );
+
+    return $messages;
+}
+
+function botzio_ai_call_provider( $provider, $api_key, $model, $prompt, $user_input, $history = array() ) {
     switch ( $provider ) {
         case 'openai':
-            return botzio_ai_call_openai( $api_key, $model, $prompt, $user_input );
+            return botzio_ai_call_openai( $api_key, $model, $prompt, $user_input, $history );
 
         case 'gemini':
-            return botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input );
+            return botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input, $history );
 
         case 'openrouter':
         default:
-            return botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input );
+            return botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input, $history );
     }
 }
 
 /**
  * OpenRouter
  */
-function botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input ) {
+function botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input, $history = array() ) {
     $temperature = floatval( get_option( 'botzio_ai_temperature', 0.3 ) );
     $max_tokens  = botzio_ai_get_max_tokens();
     $payload = array(
         'model'    => $model,
         'temperature' => $temperature,
         'max_tokens' => $max_tokens,
-        'messages' => array(
-            array(
-                'role'    => 'system',
-                'content' => $prompt,
-            ),
-            array(
-                'role'    => 'user',
-                'content' => $user_input,
-            ),
-        ),
+        'messages' => botzio_ai_build_provider_messages( $prompt, $user_input, $history ),
     );
 
     $response = wp_remote_post(
@@ -4245,23 +4786,14 @@ function botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input ) {
 /**
  * OpenAI
  */
-function botzio_ai_call_openai( $api_key, $model, $prompt, $user_input ) {
+function botzio_ai_call_openai( $api_key, $model, $prompt, $user_input, $history = array() ) {
     $temperature = floatval( get_option( 'botzio_ai_temperature', 0.3 ) );
     $max_tokens  = botzio_ai_get_max_tokens();
     $payload = array(
         'model'       => $model,
         'temperature' => $temperature,
         'max_tokens'  => $max_tokens,
-        'messages'    => array(
-            array(
-                'role'    => 'system',
-                'content' => $prompt,
-            ),
-            array(
-                'role'    => 'user',
-                'content' => $user_input,
-            ),
-        ),
+        'messages'    => botzio_ai_build_provider_messages( $prompt, $user_input, $history ),
     );
 
     $response = wp_remote_post(
@@ -4362,8 +4894,13 @@ function botzio_ai_reset_settings() {
         'botzio_ai_temperature'           => 0.3,
         'botzio_ai_max_tokens'            => 150,
         'botzio_ai_daily_limit'           => 30,
+        'botzio_ai_memory_enabled'        => 'yes',
+        'botzio_ai_memory_turns'          => 4,
+        'botzio_ai_feedback_enabled'      => 'yes',
+        'botzio_ai_store_answers'         => 'yes',
         'botzio_ai_starter_suggestions'   => "What do you offer?\nHow can I contact you?\nWhat are your business hours?\nCan you help me choose the right option?",
         'botzio_ai_cached_models'         => array(),
+        'botzio_ai_cached_free_models'    => array(),
         'botzio_ai_synced_source_ids'     => array(),
         'botzio_ai_last_source_sync'      => 0,
     );
@@ -4386,19 +4923,40 @@ add_action( 'wp_ajax_botzio_ai_reset_settings', 'botzio_ai_reset_settings' );
 /**
  * Gemini
  */
-function botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input ) {
+function botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input, $history = array() ) {
     $temperature = floatval( get_option( 'botzio_ai_temperature', 0.3 ) );
     $max_tokens  = botzio_ai_get_max_tokens();
-    $payload = array(
-        'contents' => array(
+    $contents    = array();
+
+    foreach ( botzio_ai_sanitize_conversation_history( $history ) as $item ) {
+        $contents[] = array(
+            'role'  => 'assistant' === $item['role'] ? 'model' : 'user',
+            'parts' => array(
+                array(
+                    'text' => $item['content'],
+                ),
+            ),
+        );
+    }
+
+    $contents[] = array(
+        'role'  => 'user',
+        'parts' => array(
             array(
-                'parts' => array(
-                    array(
-                        'text' => $prompt . "\n\nUser question: " . $user_input,
-                    ),
+                'text' => botzio_ai_limit_conversation_text( $user_input, 1000 ),
+            ),
+        ),
+    );
+
+    $payload = array(
+        'systemInstruction' => array(
+            'parts' => array(
+                array(
+                    'text' => $prompt,
                 ),
             ),
         ),
+        'contents' => $contents,
         'generationConfig' => array(
             'temperature'     => $temperature,
             'maxOutputTokens' => $max_tokens,
@@ -4439,14 +4997,33 @@ function botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input ) {
 
         if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) ) {
             $retry_payload = array(
-                'contents'         => array(
-                    array(
-                        'parts' => array(
-                            array(
-                                'text' => $prompt . "\n\nUser question: " . $user_input . "\n\nThe previous answer was cut off: " . $content . "\n\nRewrite the full answer from the beginning in 1 to 3 complete sentences.",
-                            ),
+                'systemInstruction' => array(
+                    'parts' => array(
+                        array(
+                            'text' => $prompt,
                         ),
                     ),
+                ),
+                'contents'         => array_merge(
+                    $contents,
+                    array(
+                        array(
+                            'role'  => 'model',
+                            'parts' => array(
+                                array(
+                                    'text' => $content,
+                                ),
+                            ),
+                        ),
+                        array(
+                            'role'  => 'user',
+                            'parts' => array(
+                                array(
+                                    'text' => 'Your previous answer was cut off. Rewrite the full answer from the beginning in 1 to 3 complete sentences.',
+                                ),
+                            ),
+                        ),
+                    )
                 ),
                 'generationConfig' => array(
                     'temperature'     => $temperature,

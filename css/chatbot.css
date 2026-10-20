@@ -190,6 +190,56 @@
   line-height: 1.8;
 }
 
+.botzio-ai-answer-feedback {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(20, 32, 51, 0.1);
+  color: #526176;
+  font-size: 10px;
+}
+
+.botzio-ai-feedback-actions {
+  display: inline-flex;
+  gap: 5px;
+  margin-left: 5px;
+}
+
+.botzio-ai-answer-feedback button {
+  min-width: 34px;
+  min-height: 25px;
+  padding: 3px 8px;
+  border: 1px solid #b9cee2;
+  border-radius: 6px;
+  background: #fff;
+  color: #26384d;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.botzio-ai-answer-feedback button:hover,
+.botzio-ai-answer-feedback button:focus-visible {
+  border-color: var(--botzio-ai-primary, #2563eb);
+  color: var(--botzio-ai-primary, #2563eb);
+  outline: none;
+}
+
+.botzio-ai-answer-feedback button.is-selected {
+  border-color: var(--botzio-ai-primary, #2563eb);
+  background: var(--botzio-ai-primary, #2563eb);
+  color: #fff;
+}
+
+.botzio-ai-answer-feedback.is-saved button:not(.is-selected) {
+  display: none;
+}
+
+.botzio-ai-feedback-result {
+  display: block;
+  margin-top: 5px;
+  color: #526176;
+}
+
 #chatbot-window {
   flex: 1;
   overflow-y: auto;

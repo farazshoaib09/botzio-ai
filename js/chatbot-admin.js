@@ -1,6 +1,7 @@
 jQuery(document).ready(function () {
   let botzioAiAdminModelsFetched = false;
   let botzioAiAdminCachedModels = botzioAiAdmin.cached_models || {};
+  let botzioAiAdminCachedFreeModels = botzioAiAdmin.cached_free_models || {};
   let botzioAiAdminConnectionVerified = !!botzioAiAdmin.connection_verified;
   let botzioAiAdminVerifiedProvider = botzioAiAdmin.verified_provider || '';
   let botzioAiAdminVerifiedModel = botzioAiAdmin.verified_model || '';
@@ -22,7 +23,11 @@ jQuery(document).ready(function () {
   }
 
   function getModelLabel(model, provider) {
-    if (model.includes(':free') || model === 'openrouter/free') {
+    if (
+      getCachedFreeModels(provider).includes(model) ||
+      model.includes(':free') ||
+      model === 'openrouter/free'
+    ) {
       return model + ' - Free';
     }
 
@@ -48,6 +53,15 @@ jQuery(document).ready(function () {
 
   function setCachedModels(provider, models) {
     botzioAiAdminCachedModels[provider] = Array.isArray(models) ? models : [];
+  }
+
+  function getCachedFreeModels(provider) {
+    const models = botzioAiAdminCachedFreeModels[provider];
+    return Array.isArray(models) ? models : [];
+  }
+
+  function setCachedFreeModels(provider, models) {
+    botzioAiAdminCachedFreeModels[provider] = Array.isArray(models) ? models : [];
   }
 
   function hasCachedModels(provider) {
@@ -126,14 +140,13 @@ jQuery(document).ready(function () {
   }
 
   function updateModelFetchButton() {
-    const canFetch = !!(
-      getProvider() &&
-      getApiKey() &&
-      !botzioAiAdminModelsFetched &&
-      (!currentConnectionMatchesVerified() || !hasCachedModels(getProvider()))
-    );
+    const provider = getProvider();
+    const canFetch = !!(provider && getApiKey());
+    const label = hasCachedModels(provider) ? 'Refresh Models' : 'Find Models';
 
-    jQuery('#botzio-ai-fetch-models').prop('disabled', !canFetch);
+    jQuery('#botzio-ai-fetch-models')
+      .prop('disabled', !canFetch)
+      .text(label);
   }
 
   function updateChangeModelButton() {
@@ -634,6 +647,7 @@ jQuery(document).ready(function () {
       success: function (res) {
         if (res.success && res.data.models && res.data.models.length > 0) {
           setCachedModels(provider, res.data.models);
+          setCachedFreeModels(provider, res.data.free_models || []);
           populateModelDropdown(provider);
           botzioAiAdminModelsFetched = true;
 
@@ -647,7 +661,6 @@ jQuery(document).ready(function () {
         result.css('color', 'red').text('Could not load models. Please check the API key and try again.');
       },
       complete: function () {
-        button.text('Find Models');
         updateConnectionControls();
       }
     });
@@ -711,6 +724,53 @@ jQuery(document).ready(function () {
       },
       error: function () {
         result.css('color', 'red').text('Could not restore defaults. Please try again.');
+      },
+      complete: function () {
+        button.prop('disabled', false);
+      }
+    });
+  });
+
+  function updateConversationControlState() {
+    const memoryEnabled = jQuery('#botzio-ai-memory-enabled').is(':checked');
+    jQuery('#botzio-ai-memory-turns').prop('disabled', !memoryEnabled);
+  }
+
+  updateConversationControlState();
+  jQuery(document).on('change', '#botzio-ai-memory-enabled', updateConversationControlState);
+
+  jQuery(document).on('click', '#botzio-ai-clear-feedback-data', function () {
+    if (!confirm(botzioAiAdmin.clear_feedback_confirm)) {
+      return;
+    }
+
+    const button = jQuery(this);
+    const result = jQuery('#botzio-ai-clear-feedback-result');
+
+    button.prop('disabled', true);
+    result.css('color', '#5f6f82').text(botzioAiAdmin.clear_feedback_working);
+
+    jQuery.ajax({
+      url: botzioAiAdmin.ajax_url,
+      method: 'POST',
+      dataType: 'json',
+      data: {
+        action: 'botzio_ai_clear_feedback_data',
+        nonce: botzioAiAdmin.nonce
+      },
+      success: function (res) {
+        if (res.success) {
+          result.css('color', 'green').text(res.data.message);
+
+          setTimeout(function () {
+            location.reload();
+          }, 800);
+        } else {
+          result.css('color', 'red').text(botzioAiAdmin.clear_feedback_error);
+        }
+      },
+      error: function () {
+        result.css('color', 'red').text(botzioAiAdmin.clear_feedback_error);
       },
       complete: function () {
         button.prop('disabled', false);
@@ -910,11 +970,11 @@ jQuery(document).ready(function () {
 
     const data = {
       openrouter:
-        'Need an API key? Create one from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">OpenRouter API Keys</a>. Recommended starter model: <code>openrouter/free</code>.',
+        'Need an API key? Create one from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">OpenRouter API Keys</a>. Use Find Models to load current free and paid models available through OpenRouter.',
       openai:
-        'Need an API key? Create one from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API Keys</a>. Recommended starter model: <code>gpt-4o-mini</code>.',
+        'Need an API key? Create one from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API Keys</a>. Use Find Models to load compatible models currently available to your account.',
       gemini:
-        'Need an API key? Create one from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>. Recommended starter model: <code>gemini-2.5-flash</code>.'
+        'Need an API key? Create one from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>. Use Find Models to load current text models available to your API key; free-tier access depends on Google\'s current quota.'
     };
 
     jQuery('#botzio-ai-provider-help-text').html(data[provider] || data.openrouter);

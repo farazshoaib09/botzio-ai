@@ -4,7 +4,7 @@ Tags: ai chatbot, wordpress chatbot, customer support, ai assistant, knowledge b
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,8 @@ Botzio AI is built for business owners, agencies, service providers, online stor
 - Let Botzio learn from up to 3 selected WordPress pages or posts.
 - Use safe default Answer Rules, and edit them when needed.
 - Add starter questions visitors can tap when chat opens.
+- Keep short-term context across the latest four exchanges so follow-up questions make sense.
+- Let visitors rate answers as helpful or not helpful.
 - Preview the chatbot before making it public.
 - See what visitors are asking and spot missing answers.
 - Find Knowledge Gap Suggestions based on recent visitor questions.
@@ -50,6 +52,8 @@ Botzio AI is built for business owners, agencies, service providers, online stor
 - Chat bubble customization
 - Custom opening message
 - Starter questions visitors can tap
+- Short-term conversation memory for follow-up questions
+- Helpful and not-helpful answer ratings
 - Admin-only chatbot preview mode
 - Admin-only AI error diagnostics
 - Recent visitor question insights
@@ -130,6 +134,7 @@ OpenRouter is used to generate AI responses and retrieve available AI models.
 Data sent:
 * Administrator API key.
 * Visitor chat messages.
+* Up to four recent visitor and assistant messages from the same browser session for conversation context.
 * Custom system prompt.
 * Manual website knowledge base configured by the administrator.
 * Selected page/post text synced by the administrator.
@@ -154,6 +159,7 @@ OpenAI is used to generate AI responses and retrieve available AI models.
 Data sent:
 * Administrator API key.
 * Visitor chat messages.
+* Up to four recent visitor and assistant messages from the same browser session for conversation context.
 * Custom system prompt.
 * Manual website knowledge base configured by the administrator.
 * Selected page/post text synced by the administrator.
@@ -178,6 +184,7 @@ Google Gemini (Generative Language API) is used to generate AI responses and ret
 Data sent:
 * Administrator API key.
 * Visitor chat messages.
+* Up to four recent visitor and assistant messages from the same browser session for conversation context.
 * Custom system prompt.
 * Manual website knowledge base configured by the administrator.
 * Selected page/post text synced by the administrator.
@@ -206,6 +213,16 @@ https://policies.google.com/privacy
 7. AI Connection setup with provider, API key, model selection, and verified connection status.
 
 == Changelog ==
+
+= 1.1.1 =
+* Replaced stale hard-coded model recommendations with live provider model discovery and refresh controls.
+* Improved OpenRouter discovery to include current free and paid text models, with free status read from provider pricing data.
+* Added short-term conversation memory so Botzio can understand follow-up questions across the latest four exchanges.
+* Added helpful and not-helpful controls beneath chatbot answers.
+* Added anonymous session grouping and page-path context for more useful visitor insights.
+* Added answer feedback reporting in Insights, with unhelpful replies automatically marked for review.
+* Added Controls settings for conversation memory length, visitor feedback, stored-answer review, and clearing review data.
+* Improved browser-storage handling so chat remains usable when local storage is unavailable.
 
 = 1.1.0 =
 * Added Knowledge Gap Suggestions based on setup state, synced pages, common visitor topics, and questions that may need better coverage.
