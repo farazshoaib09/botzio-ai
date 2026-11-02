@@ -18,6 +18,7 @@ Unlike a generic chatbot, Botzio is designed to stay focused on the website it i
 - Shows recent visitor questions, common topics, and AI connection status.
 - Suggests Knowledge Gaps from recent visitor questions and setup state.
 - Supports daily visitor message limits and adjustable answer length.
+- Offers optional, consent-based installation analytics and deactivation feedback through Freemius; skipping tracking does not disable Botzio.
 
 ## Free vs Pro
 
@@ -65,6 +66,12 @@ Botzio AI Pro is planned for advanced sales and support workflows:
 
 - WordPress 6.0 or higher
 - PHP 7.4 or higher
+
+## Optional Usage Analytics
+
+Botzio AI can connect to Freemius after explicit administrator consent to report installation lifecycle, compatibility, and deactivation information. The consent screen can be skipped, and tracking can be disabled later from the WordPress Plugins screen. Botzio does not send AI provider keys, chatbot messages, AI answers, Business Knowledge, or synced page content to Freemius.
+
+See the detailed external-service disclosure in [`readme.txt`](readme.txt).
 
 ## WordPress.org Readme
 

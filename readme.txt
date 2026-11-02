@@ -2,9 +2,9 @@
 Contributors: farazshoaib
 Tags: ai chatbot, wordpress chatbot, customer support, ai assistant, knowledge base
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -127,6 +127,27 @@ Yes. Admin-only diagnostics show the last AI provider error with provider, model
 
 Botzio AI connects to third-party AI services selected by the website administrator to generate chatbot responses and retrieve available AI models.
 
+= Freemius =
+
+Freemius provides optional, consent-based installation analytics and deactivation feedback. Botzio AI works normally when the administrator skips or disables this connection.
+
+Data Freemius may receive after the administrator opts in:
+* Basic administrator profile and website information shown on the consent screen.
+* WordPress, PHP, plugin version, locale, and environment information.
+* Botzio AI activation, deactivation, uninstall, and usage information.
+* Theme and plugin information only when the administrator permits it on the consent screen.
+* Optional deactivation feedback submitted by the administrator.
+
+Botzio AI does not send AI provider API keys, visitor chatbot messages, AI answers, Business Knowledge, or synced page/post content to Freemius.
+
+Data is sent only after explicit administrator consent. The administrator can skip the connection or opt out later from the WordPress Plugins screen.
+
+Terms of Service:
+https://freemius.com/terms/
+
+Privacy Policy:
+https://freemius.com/privacy/
+
 = OpenRouter =
 
 OpenRouter is used to generate AI responses and retrieve available AI models.
@@ -213,6 +234,14 @@ https://policies.google.com/privacy
 7. AI Connection setup with provider, API key, model selection, and verified connection status.
 
 == Changelog ==
+
+= 1.1.2 =
+* Added optional Freemius Insights with an explicit Skip path for installation lifecycle analytics.
+* Added native Upgrade and Account pages under Botzio AI for pricing, licenses, and subscription management.
+* Added deactivation and uninstall feedback so setup and retention problems can be diagnosed.
+* Kept Free and Pro active together through Freemius parallel activation support.
+* Added clear Freemius data disclosure and suggested WordPress privacy-policy text.
+* Expanded release checks to lint and BOM-scan the bundled Freemius SDK.
 
 = 1.1.1 =
 * Replaced stale hard-coded model recommendations with live provider model discovery and refresh controls.

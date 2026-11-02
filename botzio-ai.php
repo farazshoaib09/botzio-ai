@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.1.1
+Version: 1.1.2
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -15,8 +15,74 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+if ( ! function_exists( 'botzio_ai_fs' ) ) {
+    function botzio_ai_fs() {
+        global $botzio_ai_fs;
+
+        if ( ! isset( $botzio_ai_fs ) ) {
+            $sdk_path = plugin_dir_path( __FILE__ ) . 'vendor/freemius/start.php';
+
+            if ( ! file_exists( $sdk_path ) ) {
+                return null;
+            }
+
+            require_once $sdk_path;
+
+            $botzio_ai_fs = fs_dynamic_init(
+                array(
+                    'id'                  => '35059',
+                    'slug'                => 'botzio-ai',
+                    'premium_slug'        => 'botzio-ai-pro',
+                    'type'                => 'plugin',
+                    'public_key'          => 'pk_8e619af48cce3a0cd7b1b40048e69',
+                    'is_premium'          => false,
+                    'is_premium_only'     => false,
+                    'has_premium_version' => true,
+                    'has_addons'          => false,
+                    'has_paid_plans'      => true,
+                    'is_org_compliant'    => true,
+                    'parallel_activation' => array(
+                        'enabled'                   => true,
+                        'premium_version_basename' => 'botzio-ai-pro/botzio-ai-pro.php',
+                    ),
+                    'menu'                => array(
+                        'slug'           => 'botzio-ai-settings',
+                        'override_exact' => true,
+                        'first-path'     => 'admin.php?page=botzio-ai-settings',
+                        'contact'        => false,
+                        'support'        => false,
+                        'addons'         => false,
+                        'pricing'        => true,
+                        'account'        => true,
+                    ),
+                )
+            );
+        }
+
+        return $botzio_ai_fs;
+    }
+}
+
+function botzio_ai_freemius_connect_header() {
+    return __( 'Help improve Botzio AI', 'botzio-ai' );
+}
+
+function botzio_ai_freemius_connect_message() {
+    return __( 'Share basic site, WordPress environment, plugin usage, and deactivation information so we can improve compatibility and onboarding. Botzio does not send API keys, chatbot messages, AI answers, Business Knowledge, or synced page content to Freemius. You can skip this and Botzio will continue to work.', 'botzio-ai' );
+}
+
+$botzio_ai_fs_instance = botzio_ai_fs();
+
+if ( is_object( $botzio_ai_fs_instance ) ) {
+    $botzio_ai_fs_instance->add_filter( 'connect_header', 'botzio_ai_freemius_connect_header' );
+    $botzio_ai_fs_instance->add_filter( 'connect_header_on_update', 'botzio_ai_freemius_connect_header' );
+    $botzio_ai_fs_instance->add_filter( 'connect_message', 'botzio_ai_freemius_connect_message' );
+    $botzio_ai_fs_instance->add_filter( 'connect_message_on_update', 'botzio_ai_freemius_connect_message' );
+    $botzio_ai_fs_instance->add_action( 'after_uninstall', 'botzio_ai_uninstall_cleanup' );
+}
+
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.1.1' );
+    define( 'BOTZIO_AI_VERSION', '1.1.2' );
 }
 
 function botzio_ai_is_pro_plugin_active() {
@@ -193,12 +259,84 @@ function botzio_ai_plugin_activate() {
 }
 register_activation_hook( __FILE__, 'botzio_ai_plugin_activate' );
 
+function botzio_ai_uninstall_cleanup() {
+    if ( 'yes' !== get_option( 'botzio_ai_delete_data_on_uninstall', 'no' ) ) {
+        return;
+    }
+
+    $option_names = array(
+        'botzio_ai_provider',
+        'botzio_ai_api_key',
+        'botzio_ai_model',
+        'botzio_ai_custom_prompt',
+        'botzio_ai_error_message',
+        'botzio_ai_welcome_message',
+        'botzio_ai_knowledge_base',
+        'botzio_ai_display_chatbot',
+        'botzio_ai_temperature',
+        'botzio_ai_max_tokens',
+        'botzio_ai_daily_limit',
+        'botzio_ai_memory_enabled',
+        'botzio_ai_memory_turns',
+        'botzio_ai_feedback_enabled',
+        'botzio_ai_store_answers',
+        'botzio_ai_starter_suggestions',
+        'botzio_ai_total_chats',
+        'botzio_ai_total_questions',
+        'botzio_ai_recent_questions',
+        'botzio_ai_connection_verified',
+        'botzio_ai_connection_verified_provider',
+        'botzio_ai_connection_verified_model',
+        'botzio_ai_connection_verified_signature',
+        'botzio_ai_cached_models',
+        'botzio_ai_cached_free_models',
+        'botzio_ai_synced_source_ids',
+        'botzio_ai_last_source_sync',
+        'botzio_ai_last_ai_error',
+        'botzio_ai_show_welcome',
+        'botzio_ai_installed_once',
+        'botzio_ai_chat_title',
+        'botzio_ai_primary_color',
+        'botzio_ai_bubble_position',
+        'botzio_ai_delete_data_on_uninstall',
+    );
+
+    foreach ( $option_names as $option_name ) {
+        delete_option( $option_name );
+    }
+}
+
+function botzio_ai_add_privacy_policy_content() {
+    if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
+        return;
+    }
+
+    $content = '<p class="privacy-policy-tutorial">' . esc_html__( 'Use this text only when the site administrator has opted in to Botzio AI usage tracking.', 'botzio-ai' ) . '</p>';
+    $content .= '<strong class="privacy-policy-tutorial">' . esc_html__( 'Suggested text:', 'botzio-ai' ) . '</strong>';
+    $content .= '<p>' . wp_kses_post( __( 'If the site administrator chooses to share usage data, Botzio AI sends basic website, WordPress environment, plugin usage, activation, deactivation, and uninstall information to Freemius. This helps the plugin developer understand compatibility and onboarding. Botzio AI does not send AI provider keys, chatbot messages, AI answers, Business Knowledge, or synced page content to Freemius. Tracking can be skipped or disabled from the WordPress Plugins screen. See the <a href="https://freemius.com/privacy/" target="_blank" rel="noopener noreferrer">Freemius Privacy Policy</a> for details.', 'botzio-ai' ) ) . '</p>';
+
+    wp_add_privacy_policy_content( 'Botzio AI', $content );
+}
+add_action( 'admin_init', 'botzio_ai_add_privacy_policy_content' );
+
 
 /**
  * Redirect after activation
  */
 function botzio_ai_plugin_redirect_after_activation() {
     if ( get_option( 'botzio_ai_do_activation_redirect', false ) ) {
+        $freemius = botzio_ai_fs();
+
+        if (
+            is_object( $freemius ) &&
+            method_exists( $freemius, 'is_registered' ) &&
+            method_exists( $freemius, 'is_anonymous' ) &&
+            ! $freemius->is_registered() &&
+            ! $freemius->is_anonymous()
+        ) {
+            return;
+        }
+
         delete_option( 'botzio_ai_do_activation_redirect' );
 
         $activate_multi = isset( $_GET['activate-multi'] ) ? sanitize_text_field( wp_unslash( $_GET['activate-multi'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -1339,9 +1477,12 @@ function botzio_ai_sync_selected_sources() {
         );
     }
 
-    $source_ids = isset( $_POST['source_ids'] )
-        ? botzio_ai_sanitize_source_ids( wp_unslash( $_POST['source_ids'] ) )
-        : array();
+    $source_ids = array();
+
+    if ( isset( $_POST['source_ids'] ) ) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The complete array is normalized to positive integers by botzio_ai_sanitize_source_ids().
+        $source_ids = botzio_ai_sanitize_source_ids( wp_unslash( $_POST['source_ids'] ) );
+    }
 
     if ( empty( $source_ids ) ) {
         wp_send_json_error(
@@ -2423,7 +2564,16 @@ function botzio_ai_settings_page() {
                         );
                         ?>
                     </strong>
-                    <em><?php echo esc_html( $setup_complete ? __( 'Ready for visitors', 'botzio-ai' ) : sprintf( _n( '%d task remaining', '%d tasks remaining', $setup_remaining_count, 'botzio-ai' ), $setup_remaining_count ) ); ?></em>
+                    <em>
+                        <?php
+                        if ( $setup_complete ) {
+                            echo esc_html__( 'Ready for visitors', 'botzio-ai' );
+                        } else {
+                            /* translators: %d: Number of setup tasks that remain incomplete. */
+                            echo esc_html( sprintf( _n( '%d task remaining', '%d tasks remaining', $setup_remaining_count, 'botzio-ai' ), $setup_remaining_count ) );
+                        }
+                        ?>
+                    </em>
                 </div>
             </div>
 
@@ -4251,10 +4401,15 @@ function botzio_ai_process() {
 
     // Sanitize and retrieve options
     $user_input           = sanitize_text_field( wp_unslash( $_POST['user_input'] ) );
-    $conversation_history = 'yes' === get_option( 'botzio_ai_memory_enabled', 'yes' ) && isset( $_POST['history'] )
-        ? botzio_ai_sanitize_conversation_history( wp_unslash( $_POST['history'] ) )
-        : array();
+    $conversation_history = array();
+
+    if ( 'yes' === get_option( 'botzio_ai_memory_enabled', 'yes' ) && isset( $_POST['history'] ) ) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each history entry is validated and sanitized by botzio_ai_sanitize_conversation_history().
+        $conversation_history = botzio_ai_sanitize_conversation_history( wp_unslash( $_POST['history'] ) );
+    }
+
     $request_context      = array(
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The value is allowlisted and length-limited by botzio_ai_sanitize_session_id().
         'session_id' => isset( $_POST['session_id'] ) ? botzio_ai_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '',
         'page_url'   => isset( $_POST['page_url'] ) ? esc_url_raw( wp_unslash( $_POST['page_url'] ) ) : '',
     );

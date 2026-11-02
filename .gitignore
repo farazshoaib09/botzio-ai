@@ -8,7 +8,9 @@ desktop.ini
 *.swp
 
 node_modules/
-vendor/
+vendor/*
+!vendor/freemius/
+!vendor/freemius/**
 tools/
 
 .idea/

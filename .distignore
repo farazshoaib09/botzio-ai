@@ -1,8 +1,11 @@
 .git
 .github
+.distignore
+.gitignore
 .agents
 .codex
 tools
+marketing
 wordpress-org-screenshots
 wordpress-org-screenshots-safe
 BOTZIO-AI-HANDOVER-SUMMARY.md
