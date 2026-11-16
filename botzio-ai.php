@@ -2,7 +2,7 @@
 /*
 Plugin Name: Botzio AI - Smart Chatbot & Website Assistant
 Description: Botzio AI helps website owners add an AI-powered support assistant to answer visitor questions using site-specific business information.
-Version: 1.1.2
+Version: 1.1.3
 Requires at least: 6.0
 Requires PHP: 7.4
 Author: Faraz Shoaib
@@ -82,7 +82,7 @@ if ( is_object( $botzio_ai_fs_instance ) ) {
 }
 
 if ( ! defined( 'BOTZIO_AI_VERSION' ) ) {
-    define( 'BOTZIO_AI_VERSION', '1.1.2' );
+    define( 'BOTZIO_AI_VERSION', '1.1.3' );
 }
 
 function botzio_ai_is_pro_plugin_active() {
@@ -318,6 +318,91 @@ function botzio_ai_add_privacy_policy_content() {
     wp_add_privacy_policy_content( 'Botzio AI', $content );
 }
 add_action( 'admin_init', 'botzio_ai_add_privacy_policy_content' );
+
+/**
+ * Check whether Freemius is waiting for the administrator to confirm their email.
+ */
+function botzio_ai_freemius_is_pending_activation() {
+    $freemius = botzio_ai_fs();
+
+    return (
+        is_object( $freemius ) &&
+        method_exists( $freemius, 'is_pending_activation' ) &&
+        $freemius->is_pending_activation()
+    );
+}
+
+/**
+ * Return the Freemius screen that explains the pending confirmation and can resend the email.
+ */
+function botzio_ai_freemius_confirmation_url() {
+    $freemius = botzio_ai_fs();
+
+    if ( ! is_object( $freemius ) || ! method_exists( $freemius, 'get_activation_url' ) ) {
+        return admin_url( 'admin.php?page=botzio-ai-settings' );
+    }
+
+    return $freemius->get_activation_url();
+}
+
+/**
+ * Keep a pending email confirmation visible on Botzio and Plugins screens.
+ */
+function botzio_ai_pending_activation_notice() {
+    if ( ! current_user_can( 'activate_plugins' ) || ! botzio_ai_freemius_is_pending_activation() ) {
+        return;
+    }
+
+    $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+    if (
+        ! is_object( $screen ) ||
+        ! in_array( $screen->id, array( 'plugins', 'toplevel_page_botzio-ai-settings' ), true )
+    ) {
+        return;
+    }
+    ?>
+    <div class="notice notice-warning">
+        <p>
+            <strong><?php echo esc_html__( 'One last step: confirm your Botzio AI connection.', 'botzio-ai' ); ?></strong>
+        </p>
+        <p>
+            <?php echo esc_html__( 'Freemius sent a confirmation email to the WordPress administrator. Check the inbox and spam folder, then confirm the connection. Botzio AI will continue to work while confirmation is pending.', 'botzio-ai' ); ?>
+        </p>
+        <p>
+            <a class="button button-primary" href="<?php echo esc_url( botzio_ai_freemius_confirmation_url() ); ?>">
+                <?php echo esc_html__( 'Open Confirmation Screen', 'botzio-ai' ); ?>
+            </a>
+        </p>
+    </div>
+    <?php
+}
+add_action( 'admin_notices', 'botzio_ai_pending_activation_notice' );
+
+/**
+ * Replace the missing opt-in/out action with a useful pending-state action.
+ */
+function botzio_ai_pending_activation_plugin_action( $links ) {
+    if ( ! botzio_ai_freemius_is_pending_activation() ) {
+        return $links;
+    }
+
+    $confirmation_link = sprintf(
+        '<a href="%1$s">%2$s</a>',
+        esc_url( botzio_ai_freemius_confirmation_url() ),
+        esc_html__( 'Confirm Email', 'botzio-ai' )
+    );
+
+    $position = min( 1, count( $links ) );
+    $links    = array_merge(
+        array_slice( $links, 0, $position, true ),
+        array( 'botzio-ai-confirm-email' => $confirmation_link ),
+        array_slice( $links, $position, null, true )
+    );
+
+    return $links;
+}
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'botzio_ai_pending_activation_plugin_action', 20 );
 
 
 /**
@@ -1338,6 +1423,59 @@ function botzio_ai_sanitize_source_ids( $source_ids ) {
     return array_slice( $source_ids, 0, 3 );
 }
 
+/**
+ * Apply a generous safety ceiling without flattening headings and paragraphs.
+ */
+function botzio_ai_trim_synced_source_text( $content, $word_limit = 10000 ) {
+    $content    = trim( (string) $content );
+    $word_limit = max( 1, absint( $word_limit ) );
+
+    if ( '' === $content ) {
+        return '';
+    }
+
+    preg_match_all( '/\S+/u', $content, $words, PREG_OFFSET_CAPTURE );
+
+    if ( count( $words[0] ) <= $word_limit ) {
+        return $content;
+    }
+
+    $last_word = $words[0][ $word_limit - 1 ];
+    $end       = (int) $last_word[1] + strlen( $last_word[0] );
+
+    return sprintf(
+        "%s\n\n[Content shortened after %s words for safe storage.]",
+        rtrim( substr( $content, 0, $end ) ),
+        number_format_i18n( $word_limit )
+    );
+}
+
+/**
+ * Render a source through WordPress so active builders can expose content that
+ * they store outside post_content.
+ */
+function botzio_ai_render_source_content( $source_post ) {
+    if ( ! $source_post instanceof WP_Post ) {
+        return '';
+    }
+
+    $previous_post   = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
+    $GLOBALS['post'] = $source_post;
+    setup_postdata( $source_post );
+
+    $content = apply_filters( 'the_content', $source_post->post_content );
+
+    if ( $previous_post instanceof WP_Post ) {
+        $GLOBALS['post'] = $previous_post;
+        setup_postdata( $previous_post );
+    } else {
+        wp_reset_postdata();
+        unset( $GLOBALS['post'] );
+    }
+
+    return (string) $content;
+}
+
 function botzio_ai_build_synced_knowledge_block( $source_ids ) {
     $source_ids = botzio_ai_sanitize_source_ids( $source_ids );
 
@@ -1346,8 +1484,8 @@ function botzio_ai_build_synced_knowledge_block( $source_ids ) {
     }
 
     $lines = array(
-        'Website Knowledge Sync:',
-        'These selected WordPress pages/posts were manually synced into Botzio AI Free.',
+        '=== Botzio Synced Website Knowledge ===',
+        'The following clean page text was synced from selected WordPress sources.',
     );
 
     foreach ( $source_ids as $source_id ) {
@@ -1357,38 +1495,133 @@ function botzio_ai_build_synced_knowledge_block( $source_ids ) {
             continue;
         }
 
-        $content       = $post->post_excerpt ? $post->post_excerpt : $post->post_content;
-        $content       = botzio_ai_clean_synced_source_text( $content );
-        $content       = wp_trim_words( $content, 80, '' );
-        $page_sections = botzio_ai_extract_synced_source_sections( $post->post_content );
+        $content_candidates = array(
+            $post->post_content,
+            botzio_ai_render_source_content( $post ),
+        );
+        $content = '';
 
-        $lines[] = '';
-        $lines[] = 'Source: ' . get_post_type_object( $post->post_type )->labels->singular_name;
-        $lines[] = 'Title: ' . get_the_title( $post );
-        $lines[] = 'URL: ' . get_permalink( $post );
+        foreach ( $content_candidates as $candidate ) {
+            $candidate = botzio_ai_clean_synced_source_text( $candidate, true );
 
-        if ( '' !== $content ) {
-            $lines[] = 'Summary: ' . $content;
-        }
-
-        if ( ! empty( $page_sections ) ) {
-            $section_names = wp_list_pluck( $page_sections, 'heading' );
-            $lines[]       = 'Key Sections: ' . implode( '; ', $section_names ) . '.';
-
-            foreach ( $page_sections as $section ) {
-                $lines[] = $section['heading'] . ': ' . $section['summary'];
+            if ( strlen( $candidate ) > strlen( $content ) ) {
+                $content = $candidate;
             }
         }
+
+        /**
+         * Allow a builder integration to provide its visible page content when
+         * that builder stores data outside post_content and does not render it
+         * through WordPress's standard the_content filter.
+         *
+         * @param string  $content Clean visible page text.
+         * @param WP_Post $post    Source page or post.
+         */
+        $content = apply_filters( 'botzio_ai_synced_source_content', $content, $post );
+        $content = botzio_ai_clean_synced_source_text( $content, true );
+
+        if ( '' === $content && $post->post_excerpt ) {
+            $content = botzio_ai_clean_synced_source_text( $post->post_excerpt, true );
+        }
+
+        $content = botzio_ai_trim_synced_source_text( $content, 10000 );
+
+        $lines[]   = '';
+        $post_type = get_post_type_object( $post->post_type );
+        $lines[]   = 'Source: ' . ( $post_type ? $post_type->labels->singular_name : $post->post_type );
+        $lines[]   = 'Title: ' . get_the_title( $post );
+        $lines[]   = 'URL: ' . get_permalink( $post );
+
+        if ( '' !== $content ) {
+            $lines[] = '';
+            $lines[] = 'Page Content:';
+            $lines[] = $content;
+        }
     }
+
+    $lines[] = '';
+    $lines[] = '=== End Botzio Synced Website Knowledge ===';
 
     return trim( implode( "\n", $lines ) );
 }
 
-function botzio_ai_clean_synced_source_text( $content ) {
-    $content = wp_strip_all_tags( strip_shortcodes( (string) $content ) );
+/**
+ * Extract readable page text without depending on a specific page builder.
+ *
+ * Visible text is preserved while scripts, styles, HTML, and both registered
+ * and unknown shortcode wrappers are removed. Headings and block boundaries
+ * can be retained so focused retrieval can select useful page sections later.
+ */
+function botzio_ai_clean_synced_source_text( $content, $preserve_headings = false ) {
+    $content = (string) $content;
+
+    $content = preg_replace( '#<(script|style|noscript|template)[^>]*>.*?</\1>#is', ' ', $content );
+    $content = preg_replace( '/<!--(?:.|\s)*?-->/', "\n", $content );
+
+    $content = preg_replace_callback(
+        '/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is',
+        function ( $matches ) use ( $preserve_headings ) {
+            $heading = trim( wp_strip_all_tags( (string) $matches[1] ) );
+
+            if ( '' === $heading ) {
+                return "\n";
+            }
+
+            return $preserve_headings ? "\n\n" . $heading . "\n" : ' ' . $heading . ' ';
+        },
+        $content
+    );
+
+    // Keep headings stored in self-closing builder shortcodes before removing
+    // shortcode wrappers. This covers builders without hard-coding their names.
+    $content = preg_replace_callback(
+        '/\[([a-zA-Z][a-zA-Z0-9_-]*(?:heading|headline|title)[a-zA-Z0-9_-]*)([^\]]*)\]/',
+        function ( $matches ) use ( $preserve_headings ) {
+            $attributes = isset( $matches[2] ) ? (string) $matches[2] : '';
+
+            if ( ! preg_match( '/(?:^|\s)(?:text|title|heading|headline)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s\]]+))/i', $attributes, $value_match ) ) {
+                return '';
+            }
+
+            $value = '';
+
+            foreach ( array_slice( $value_match, 1 ) as $candidate ) {
+                if ( '' !== (string) $candidate ) {
+                    $value = (string) $candidate;
+                    break;
+                }
+            }
+
+            $value = trim( wp_strip_all_tags( html_entity_decode( $value, ENT_QUOTES, get_bloginfo( 'charset' ) ) ) );
+
+            if ( '' === $value ) {
+                return '';
+            }
+
+            return $preserve_headings ? "\n\n" . $value . "\n" : ' ' . $value . ' ';
+        },
+        $content
+    );
+
+    $content = strip_shortcodes( $content );
+
+    // Inactive builders do not register their shortcodes. Remove any remaining
+    // shortcode-like tags while leaving enclosed human-readable text.
+    $content = preg_replace( '/\[\/?[a-zA-Z][a-zA-Z0-9_-]*(?:\s[^\]]*)?\/?\]/', ' ', $content );
+
+    $content = preg_replace( '#<(?:br|hr)\s*/?>#i', "\n", $content );
+    $content = preg_replace( '#</(?:p|div|section|article|header|footer|main|aside|li|ul|ol|table|tr|blockquote)>#i', "\n", $content );
+    $content = preg_replace( '#<li[^>]*>#i', '- ', $content );
+    $content = wp_strip_all_tags( $content );
     $content = html_entity_decode( $content, ENT_QUOTES, get_bloginfo( 'charset' ) );
     $content = preg_replace( '/\x{00a0}/u', ' ', $content );
-    $content = preg_replace( '/\s+/', ' ', $content );
+    $content = preg_replace( '/[\t ]+/', ' ', $content );
+    $content = preg_replace( '/\s*\n\s*/', "\n", $content );
+    $content = preg_replace( '/\n{3,}/', "\n\n", $content );
+
+    if ( ! $preserve_headings ) {
+        $content = preg_replace( '/\s+/', ' ', $content );
+    }
 
     return trim( (string) $content );
 }
@@ -1453,10 +1686,36 @@ function botzio_ai_extract_synced_source_sections( $content ) {
 
 function botzio_ai_replace_synced_knowledge_block( $knowledge_base, $synced_block ) {
     $knowledge_base = trim( (string) $knowledge_base );
-    $pattern        = '/\n*Website Knowledge Sync:\s*.*?(?=\n\n[A-Z][^\n:]+:|\z)/s';
+    $pattern        = '/\n*=== Botzio Synced Website Knowledge ===.*?=== End Botzio Synced Website Knowledge ===\n*/s';
+    $knowledge_base = trim( (string) preg_replace( $pattern, '', $knowledge_base ) );
 
-    if ( preg_match( $pattern, $knowledge_base ) ) {
-        $knowledge_base = trim( preg_replace( $pattern, '', $knowledge_base ) );
+    // Remove source summaries created by early Free-sync versions that had no
+    // surrounding marker. Their fixed four-line shape distinguishes them from
+    // manually entered knowledge.
+    $legacy_summary_pattern = '/\n*Source: Selected (?:page|post)\RTitle:[^\r\n]*\RURL:[^\r\n]*\RSummary:[^\r\n]*(?:\R)?/i';
+    $knowledge_base         = trim( (string) preg_replace( $legacy_summary_pattern, '', $knowledge_base ) );
+
+    // Migrate the original sync format. Each legacy source was one continuous
+    // block, so the first blank line after the final Source entry marks its end.
+    $legacy_start = strpos( $knowledge_base, 'Website Knowledge Sync:' );
+
+    if ( false !== $legacy_start ) {
+        $legacy_text = substr( $knowledge_base, $legacy_start );
+        preg_match_all( '/\nSource:/', $legacy_text, $source_matches, PREG_OFFSET_CAPTURE );
+
+        if ( ! empty( $source_matches[0] ) ) {
+            $last_source = end( $source_matches[0] );
+            $search_from = (int) $last_source[1] + strlen( $last_source[0] );
+            $legacy_end  = strpos( $legacy_text, "\n\n", $search_from );
+            $legacy_end  = false === $legacy_end ? strlen( $legacy_text ) : $legacy_end;
+            $knowledge_base = trim(
+                substr( $knowledge_base, 0, $legacy_start ) . substr( $legacy_text, $legacy_end )
+            );
+        } else {
+            $knowledge_base = trim(
+                (string) preg_replace( '/\n*Website Knowledge Sync:.*?(?=\n\n|\z)/s', '', $knowledge_base, 1 )
+            );
+        }
     }
 
     if ( '' === trim( $synced_block ) ) {
@@ -1504,7 +1763,7 @@ function botzio_ai_sync_selected_sources() {
         array(
             'message'        => sprintf(
                 /* translators: %d: synced source count */
-                _n( '%d source synced into Business Knowledge. Test your chatbot with questions from this page.', '%d sources synced into Business Knowledge. Test your chatbot with questions from these pages.', count( $source_ids ), 'botzio-ai' ),
+                _n( '%d source synced as clean page text. Test your chatbot with questions from this page.', '%d sources synced as clean page text. Test your chatbot with questions from these pages.', count( $source_ids ), 'botzio-ai' ),
                 count( $source_ids )
             ),
             'knowledge_base' => trim( $knowledge_base ),
@@ -1610,7 +1869,7 @@ function botzio_ai_knowledge_base_field() {
                     <div>
                         <span class="botzio-ai-kb-health-label"><?php echo esc_html__( 'Basic website sync', 'botzio-ai' ); ?></span>
                         <strong><?php echo esc_html__( 'Sync up to 3 pages or posts', 'botzio-ai' ); ?></strong>
-                        <p><?php echo esc_html__( 'Free includes manual text sync for selected WordPress pages/posts. Products, documents, auto-sync, and unlimited sources are Pro features.', 'botzio-ai' ); ?></p>
+                        <p><?php echo esc_html__( 'Free extracts clean, readable text from up to 3 selected WordPress pages or posts. Products, documents, auto-sync, and unlimited sources are Pro features.', 'botzio-ai' ); ?></p>
                         <p class="botzio-ai-settings-hint">
                             <?php echo esc_html__( 'For better answers, choose pages with clear headings such as Services, About, FAQs, Policies, or Contact.', 'botzio-ai' ); ?>
                         </p>
@@ -1726,7 +1985,7 @@ function botzio_ai_knowledge_base_field() {
     ><?php echo esc_textarea( $value ); ?></textarea>
 
     <p class="description botzio-ai-settings-hint">
-        <?php echo esc_html__( 'Keep this structured. Botzio now selects the most relevant knowledge sections before asking AI, so clear headings and short sections improve answer accuracy.', 'botzio-ai' ); ?>
+        <?php echo esc_html__( 'Synced sources appear here as clean text with headings and paragraphs. Botzio selects the most relevant sections before asking AI, so you can review or edit the saved knowledge at any time.', 'botzio-ai' ); ?>
     </p>
     <?php
 }
@@ -1822,6 +2081,10 @@ function botzio_ai_should_retry_incomplete_response( $content, $finish_reason = 
         return true;
     }
 
+    if ( preg_match( '/\s\?$/u', $content ) ) {
+        return true;
+    }
+
     $word_count = str_word_count( $content );
 
     if ( $word_count < 4 ) {
@@ -1836,7 +2099,7 @@ function botzio_ai_should_retry_incomplete_response( $content, $finish_reason = 
 }
 
 function botzio_ai_get_retry_max_tokens( $max_tokens ) {
-    return min( 1000, max( 250, absint( $max_tokens ) * 2 ) );
+    return min( 1000, max( 600, absint( $max_tokens ) * 2 ) );
 }
 
 function botzio_ai_validate_model_for_provider( $provider, $model ) {
@@ -3875,8 +4138,10 @@ function botzio_ai_score_knowledge_section( $section, $terms, $intent ) {
     return $score;
 }
 
-function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message ) {
+function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message, $section_limit = 4, $context_limit = 3600 ) {
     $knowledge_base = trim( (string) $knowledge_base );
+    $section_limit  = min( 8, max( 1, absint( $section_limit ) ) );
+    $context_limit  = min( 8000, max( 2200, absint( $context_limit ) ) );
 
     if ( '' === $knowledge_base || strlen( wp_strip_all_tags( $knowledge_base ) ) <= 2200 ) {
         return $knowledge_base;
@@ -3891,15 +4156,36 @@ function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message ) {
     $terms  = botzio_ai_get_query_terms( $message );
     $intent = botzio_ai_get_message_intent( $message );
     $scored = array();
+    $generic_terms = array(
+        'about', 'business', 'offer', 'offers', 'product', 'products', 'provide',
+        'sell', 'service', 'services', 'website',
+    );
+    $specific_terms     = array_values( array_diff( $terms, $generic_terms ) );
+    $has_specific_match = false;
 
     foreach ( $sections as $index => $section ) {
-        $score = botzio_ai_score_knowledge_section( $section, $terms, $intent );
+        $score          = botzio_ai_score_knowledge_section( $section, $terms, $intent );
+        $normalized     = botzio_ai_normalize_text( $section['text'] );
+        $specific_match = false;
+
+        foreach ( $specific_terms as $specific_term ) {
+            if ( '' !== $specific_term && false !== strpos( $normalized, $specific_term ) ) {
+                $specific_match     = true;
+                $has_specific_match = true;
+                break;
+            }
+        }
 
         $scored[] = array(
-            'index' => $index,
-            'score' => $score,
-            'text'  => $section['text'],
+            'index'          => $index,
+            'score'          => $score,
+            'specific_match' => $specific_match,
+            'text'           => $section['text'],
         );
+    }
+
+    if ( ! empty( $specific_terms ) && ! $has_specific_match ) {
+        return '';
     }
 
     usort(
@@ -3916,13 +4202,17 @@ function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message ) {
     $selected = array();
 
     foreach ( $scored as $item ) {
+        if ( ! empty( $specific_terms ) && ! $item['specific_match'] ) {
+            continue;
+        }
+
         if ( $item['score'] <= 0 && ! empty( $selected ) ) {
             continue;
         }
 
         $selected[] = $item;
 
-        if ( count( $selected ) >= 4 ) {
+        if ( count( $selected ) >= $section_limit ) {
             break;
         }
     }
@@ -3930,13 +4220,6 @@ function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message ) {
     if ( empty( $selected ) ) {
         $selected = array_slice( $scored, 0, 3 );
     }
-
-    usort(
-        $selected,
-        function ( $a, $b ) {
-            return $a['index'] <=> $b['index'];
-        }
-    );
 
     $context_parts = array();
     $context_size  = 0;
@@ -3948,7 +4231,7 @@ function botzio_ai_get_focused_knowledge_context( $knowledge_base, $message ) {
             continue;
         }
 
-        if ( $context_size + strlen( $text ) > 3600 && ! empty( $context_parts ) ) {
+        if ( $context_size + strlen( $text ) > $context_limit && ! empty( $context_parts ) ) {
             continue;
         }
 
@@ -4100,15 +4383,88 @@ function botzio_ai_is_incomplete_answer( $answer, $question ) {
         return false;
     }
 
-    $word_count = str_word_count( $clean_answer );
+    if ( 1 === substr_count( $clean_answer, '**' ) % 2 ) {
+        return true;
+    }
 
-    $last_char = substr( $clean_answer, -1 );
+    if ( preg_match( '/\s\?$/u', $clean_answer ) ) {
+        return true;
+    }
 
-    if ( $word_count <= 12 && ! in_array( $last_char, array( '.', '!', '?', ':' ), true ) ) {
+    if ( preg_match( '/\b(?:a|an|and|at|by|for|from|in|of|on|or|the|to|with)$/i', $clean_answer ) ) {
         return true;
     }
 
     return false;
+}
+
+/**
+ * Remove only a broken trailing fragment while preserving complete sentences
+ * and list items already returned by the provider.
+ */
+function botzio_ai_trim_incomplete_answer_tail( $answer ) {
+    $answer = trim( (string) $answer );
+
+    if ( '' === $answer ) {
+        return '';
+    }
+
+    $lines = preg_split( "/\r\n|\n|\r/", $answer );
+
+    while ( count( $lines ) > 1 ) {
+        $last_line  = trim( (string) end( $lines ) );
+        $plain_line = trim( preg_replace( '/^(?:[-*•]|\d+[.)])\s*/u', '', wp_strip_all_tags( $last_line ) ) );
+        $unbalanced = 1 === substr_count( $last_line, '**' ) % 2;
+        $dangling   = preg_match( '/\b(?:a|an|and|at|by|for|from|in|of|on|or|the|to|with)$/i', $plain_line );
+        if ( ! $unbalanced && ! $dangling ) {
+            break;
+        }
+
+        array_pop( $lines );
+    }
+
+    $trimmed = trim( implode( "\n", $lines ) );
+
+    if ( count( $lines ) > 1 || preg_match( '/[.!?。؟)]$/u', $trimmed ) ) {
+        return $trimmed;
+    }
+
+    if ( preg_match_all( '/.*?[.!?。؟](?=\s|$)/us', $trimmed, $sentences ) && ! empty( $sentences[0] ) ) {
+        return trim( implode( ' ', array_map( 'trim', $sentences[0] ) ) );
+    }
+
+    return $trimmed;
+}
+
+/**
+ * Accept a retry only when it resolves the cutoff instead of merely returning
+ * more characters. A clean completed prefix is preferred over a broken tail.
+ */
+function botzio_ai_get_valid_retry_answer( $retry_content, $retry_finish, $question ) {
+    $retry_content = trim( (string) $retry_content );
+
+    if ( '' === $retry_content ) {
+        return '';
+    }
+
+    if (
+        ! botzio_ai_should_retry_incomplete_response( $retry_content, $retry_finish ) &&
+        ! botzio_ai_is_incomplete_answer( $retry_content, $question )
+    ) {
+        return $retry_content;
+    }
+
+    $trimmed_retry = botzio_ai_trim_incomplete_answer_tail( $retry_content );
+
+    if (
+        '' !== $trimmed_retry &&
+        ! botzio_ai_should_retry_incomplete_response( $trimmed_retry, 'stop' ) &&
+        ! botzio_ai_is_incomplete_answer( $trimmed_retry, $question )
+    ) {
+        return $trimmed_retry;
+    }
+
+    return '';
 }
 
 function botzio_ai_limit_conversation_text( $text, $limit = 800 ) {
@@ -4164,6 +4520,71 @@ function botzio_ai_sanitize_conversation_history( $history ) {
     }
 
     return $clean_history;
+}
+
+/**
+ * Identify messages that depend on an earlier exchange for their meaning.
+ */
+function botzio_ai_is_contextual_follow_up( $message ) {
+    $normalized = botzio_ai_normalize_text( $message );
+
+    if ( '' === $normalized ) {
+        return false;
+    }
+
+    if ( 'vague' === botzio_ai_get_message_intent( $message ) ) {
+        return true;
+    }
+
+    if ( preg_match( '/^(and|also|but|so|then|what about|how about|tell me more|show me more)\b/', $normalized ) ) {
+        return true;
+    }
+
+    return (bool) preg_match( '/\b(it|its|that|this|they|their|them|those|these|same|former|latter|above|more)\b/', $normalized );
+}
+
+/**
+ * Detect requests that ask Botzio to continue a previous list or explanation.
+ */
+function botzio_ai_is_continuation_request( $message ) {
+    $normalized = botzio_ai_normalize_text( $message );
+
+    if ( '' === $normalized ) {
+        return false;
+    }
+
+    return (bool) preg_match(
+        '/\b(show more|tell me more|more examples|more options|more items|what else|anything else|any others|other examples|additional|another|continue)\b/',
+        $normalized
+    );
+}
+
+/**
+ * Add the latest visitor topic to retrieval only when the current message is a
+ * contextual follow-up. Provider history is still sent separately.
+ */
+function botzio_ai_get_contextual_retrieval_query( $user_input, $history ) {
+    $user_input = botzio_ai_limit_conversation_text( $user_input, 1000 );
+    $history    = botzio_ai_sanitize_conversation_history( $history );
+
+    if ( empty( $history ) || ! botzio_ai_is_contextual_follow_up( $user_input ) ) {
+        return $user_input;
+    }
+
+    $previous_user_message = '';
+
+    foreach ( array_reverse( $history ) as $item ) {
+        if ( 'user' === $item['role'] ) {
+            $previous_user_message = $item['content'];
+            break;
+        }
+    }
+
+    if ( '' === $previous_user_message ) {
+        return $user_input;
+    }
+
+    return $previous_user_message . "\nFollow-up: " . $user_input;
 }
 
 function botzio_ai_sanitize_session_id( $session_id ) {
@@ -4428,7 +4849,7 @@ function botzio_ai_process() {
         );
     }
 
-    if ( '' !== $clarification ) {
+    if ( '' !== $clarification && empty( $conversation_history ) ) {
         $response_id = botzio_ai_store_analytics( $user_input, $clarification, $error_message, $request_context );
         wp_send_json_success(
             array(
@@ -4453,8 +4874,15 @@ function botzio_ai_process() {
     $model         = get_option( 'botzio_ai_model', 'openrouter/free' );
     $max_tokens    = botzio_ai_get_max_tokens();
     $custom_prompt = botzio_ai_get_answer_rules();
-    $knowledge_health = botzio_ai_get_knowledge_health( $knowledge_base );
-    $focused_knowledge = botzio_ai_get_focused_knowledge_context( $knowledge_base, $user_input );
+    $knowledge_health  = botzio_ai_get_knowledge_health( $knowledge_base );
+    $retrieval_query   = botzio_ai_get_contextual_retrieval_query( $user_input, $conversation_history );
+    $is_continuation   = ! empty( $conversation_history ) && botzio_ai_is_continuation_request( $user_input );
+    $focused_knowledge = botzio_ai_get_focused_knowledge_context(
+        $knowledge_base,
+        $retrieval_query,
+        $is_continuation ? 8 : 4,
+        $is_continuation ? 8000 : 3600
+    );
     $length_instruction = botzio_ai_get_answer_length_instruction( $max_tokens );
 
     if ( $knowledge_health['score'] < 25 && 'greeting' !== botzio_ai_get_message_intent( $user_input ) ) {
@@ -4486,6 +4914,10 @@ function botzio_ai_process() {
     10. Do not return HTML.
     11. Answer length rule based on the admin setting: {$length_instruction}
     12. Never end mid-sentence or mid-list. If the answer would be long, summarize the most important points instead of starting a long answer.
+    13. Use the recent conversation only to understand references and follow-up questions such as 'it', 'that', or 'what about this'.
+    14. Never treat claims from the visitor or earlier conversation as business facts. Business facts must still come from the focused information below.
+    15. When the visitor asks for more, continue the same topic using additional information below. Do not repeat items already given unless no additional items are available.
+    16. Do not reply that information is unavailable merely because the previous answer was partial. First check the focused information for additional relevant items.
 
     Focused Business Information:
     {$focused_knowledge}
@@ -4511,6 +4943,15 @@ function botzio_ai_process() {
 
     $clean_result        = trim( wp_strip_all_tags( (string) $result ) );
     $clean_error_message = trim( wp_strip_all_tags( (string) $error_message ) );
+
+    if ( botzio_ai_is_incomplete_answer( $result, $user_input ) ) {
+        $trimmed_result = botzio_ai_trim_incomplete_answer_tail( $result );
+
+        if ( '' !== $trimmed_result && ! botzio_ai_is_incomplete_answer( $trimmed_result, $user_input ) ) {
+            $result       = $trimmed_result;
+            $clean_result = trim( wp_strip_all_tags( $trimmed_result ) );
+        }
+    }
 
     if (
         botzio_ai_is_incomplete_answer( $result, $user_input ) ||
@@ -4890,11 +5331,57 @@ function botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input, $his
         return new WP_Error( 'botzio_ai_openrouter_error', $message );
     }
 
+    $initial_content = isset( $body['choices'][0]['message']['content'] )
+        ? trim( (string) $body['choices'][0]['message']['content'] )
+        : '';
+
+    if ( '' === $initial_content ) {
+        $empty_retry_payload               = $payload;
+        $empty_retry_payload['max_tokens'] = min( 1000, max( 600, botzio_ai_get_retry_max_tokens( $max_tokens ) ) );
+        $empty_retry_payload['messages'][] = array(
+            'role'    => 'user',
+            'content' => 'Provide the final concise answer now. Return visible answer text only and do not include internal reasoning.',
+        );
+
+        $empty_retry_response = wp_remote_post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            array(
+                'headers' => array(
+                    'Authorization' => 'Bearer ' . $api_key,
+                    'Content-Type'  => 'application/json',
+                ),
+                'body'    => wp_json_encode( $empty_retry_payload ),
+                'timeout' => botzio_ai_get_request_timeout(),
+            )
+        );
+
+        if ( is_wp_error( $empty_retry_response ) ) {
+            return $empty_retry_response;
+        }
+
+        $empty_retry_body   = json_decode( wp_remote_retrieve_body( $empty_retry_response ), true );
+        $empty_retry_status = wp_remote_retrieve_response_code( $empty_retry_response );
+
+        if ( $empty_retry_status < 200 || $empty_retry_status >= 300 ) {
+            $message = isset( $empty_retry_body['error']['message'] )
+                ? sanitize_text_field( $empty_retry_body['error']['message'] )
+                : 'OpenRouter retry failed.';
+
+            return new WP_Error( 'botzio_ai_openrouter_error', $message );
+        }
+
+        if ( ! empty( $empty_retry_body['choices'][0]['message']['content'] ) ) {
+            return trim( (string) $empty_retry_body['choices'][0]['message']['content'] );
+        }
+
+        return new WP_Error( 'botzio_ai_openrouter_error', 'OpenRouter returned no visible answer after retrying.' );
+    }
+
     if ( isset( $body['choices'][0]['message']['content'] ) ) {
-        $content       = trim( $body['choices'][0]['message']['content'] );
+        $content       = $initial_content;
         $finish_reason = isset( $body['choices'][0]['finish_reason'] ) ? $body['choices'][0]['finish_reason'] : '';
 
-        if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) ) {
+        if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) || botzio_ai_is_incomplete_answer( $content, $user_input ) ) {
             $retry_payload               = $payload;
             $retry_payload['max_tokens'] = botzio_ai_get_retry_max_tokens( $max_tokens );
             $retry_payload['messages'][] = array(
@@ -4924,9 +5411,12 @@ function botzio_ai_call_openrouter( $api_key, $model, $prompt, $user_input, $his
 
                 if ( $retry_status_code >= 200 && $retry_status_code < 300 && ! empty( $retry_body['choices'][0]['message']['content'] ) ) {
                     $retry_content = trim( $retry_body['choices'][0]['message']['content'] );
+                    $retry_finish  = isset( $retry_body['choices'][0]['finish_reason'] ) ? $retry_body['choices'][0]['finish_reason'] : '';
 
-                    if ( strlen( $retry_content ) > strlen( $content ) ) {
-                        return $retry_content;
+                    $valid_retry = botzio_ai_get_valid_retry_answer( $retry_content, $retry_finish, $user_input );
+
+                    if ( '' !== $valid_retry ) {
+                        return $valid_retry;
                     }
                 }
             }
@@ -4982,7 +5472,7 @@ function botzio_ai_call_openai( $api_key, $model, $prompt, $user_input, $history
         $content       = trim( $body['choices'][0]['message']['content'] );
         $finish_reason = isset( $body['choices'][0]['finish_reason'] ) ? $body['choices'][0]['finish_reason'] : '';
 
-        if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) ) {
+        if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) || botzio_ai_is_incomplete_answer( $content, $user_input ) ) {
             $retry_payload                = $payload;
             $retry_payload['max_tokens']  = botzio_ai_get_retry_max_tokens( $max_tokens );
             $retry_payload['messages'][]  = array(
@@ -5012,9 +5502,11 @@ function botzio_ai_call_openai( $api_key, $model, $prompt, $user_input, $history
 
                 if ( $retry_status_code >= 200 && $retry_status_code < 300 && ! empty( $retry_body['choices'][0]['message']['content'] ) ) {
                     $retry_content = trim( $retry_body['choices'][0]['message']['content'] );
+                    $retry_finish  = isset( $retry_body['choices'][0]['finish_reason'] ) ? $retry_body['choices'][0]['finish_reason'] : '';
+                    $valid_retry   = botzio_ai_get_valid_retry_answer( $retry_content, $retry_finish, $user_input );
 
-                    if ( strlen( $retry_content ) > strlen( $content ) ) {
-                        return $retry_content;
+                    if ( '' !== $valid_retry ) {
+                        return $valid_retry;
                     }
                 }
             }
@@ -5150,7 +5642,7 @@ function botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input, $history
         $content       = trim( $body['candidates'][0]['content']['parts'][0]['text'] );
         $finish_reason = isset( $body['candidates'][0]['finishReason'] ) ? $body['candidates'][0]['finishReason'] : '';
 
-        if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) ) {
+        if ( botzio_ai_should_retry_incomplete_response( $content, $finish_reason ) || botzio_ai_is_incomplete_answer( $content, $user_input ) ) {
             $retry_payload = array(
                 'systemInstruction' => array(
                     'parts' => array(
@@ -5203,9 +5695,11 @@ function botzio_ai_call_gemini( $api_key, $model, $prompt, $user_input, $history
 
                 if ( $retry_status_code >= 200 && $retry_status_code < 300 && ! empty( $retry_body['candidates'][0]['content']['parts'][0]['text'] ) ) {
                     $retry_content = trim( $retry_body['candidates'][0]['content']['parts'][0]['text'] );
+                    $retry_finish  = isset( $retry_body['candidates'][0]['finishReason'] ) ? $retry_body['candidates'][0]['finishReason'] : '';
+                    $valid_retry   = botzio_ai_get_valid_retry_answer( $retry_content, $retry_finish, $user_input );
 
-                    if ( strlen( $retry_content ) > strlen( $content ) ) {
-                        return $retry_content;
+                    if ( '' !== $valid_retry ) {
+                        return $valid_retry;
                     }
                 }
             }

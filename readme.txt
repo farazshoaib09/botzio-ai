@@ -4,7 +4,7 @@ Tags: ai chatbot, wordpress chatbot, customer support, ai assistant, knowledge b
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -234,6 +234,15 @@ https://policies.google.com/privacy
 7. AI Connection setup with provider, API key, model selection, and verified connection status.
 
 == Changelog ==
+
+= 1.1.3 =
+* Improved page and post syncing to save clean readable text instead of page-builder HTML and shortcode markup.
+* Increased the safe per-source sync allowance while preserving useful headings and paragraph structure.
+* Improved conversation memory and contextual retrieval for follow-up requests such as "show more" and "tell me more."
+* Added stronger retrieval confidence checks so unsupported specific questions do not receive unrelated knowledge.
+* Added incomplete-answer detection and validated retries across Gemini, OpenAI, and OpenRouter.
+* Improved handling for empty provider responses, cut-off lists, broken Markdown, and incomplete product names.
+* Added clearer pending Freemius email-confirmation guidance in WordPress admin.
 
 = 1.1.2 =
 * Added optional Freemius Insights with an explicit Skip path for installation lifecycle analytics.
